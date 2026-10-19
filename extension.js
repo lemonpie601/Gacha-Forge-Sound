@@ -1005,10 +1005,15 @@
     }
   }
 
+  // 여러 후보 중 하나라도 보이면 true (querySelector는 첫 번째만 봐서, 그게 숨겨져 있으면 놓침)
+  const anyVis = (sel) => { for (const el of root.querySelectorAll(sel)) if (vis(el)) return true; return false; };
+  // 전투 단서: 스킬 줄, 턴 순서·라운드, 적 지정(aim) 화면, Auto·배속 조작줄, 프리셋
+  // (스토리 화면의 '자동 넘김' 버튼도 data-auto를 써서 그건 단서에서 뺌)
+  const BATTLE_SEL = ".arena, [data-side-enemies], .cbt.enemy, .cbt-acts, .cbt-queue, [data-queue], [data-turn], .cbt-aim, .cbt-turn, .cbt-turn-slot, .cbt-presets, [data-speed]";
   function currentSituation() {
     if (!gfVisible() || !root) return cfg.bgmOutside && !document.hidden ? "lobby" : null;
     if (vis(root.querySelector(".reveal"))) return "summon";
-    if (vis(root.querySelector(".cbt-acts, .cbt-queue"))) return "battle";
+    if (anyVis(BATTLE_SEL)) return "battle";
     if (vis(root.querySelector(".vn-text"))) return "story_" + (cfg.storyMoodMode === "auto" ? storyMood : cfg.storyMoodMode);
     return "lobby";
   }
@@ -1257,13 +1262,18 @@
   }
 
   /* ---------- 상황에 맞춰 배경음 맞추기 ---------- */
-  let currentSit = null, previewSit = null;
+  let currentSit = null, previewSit = null, battleLeaveAt = 0;
   async function syncBgm() {
     if (!host || !host.isConnected) { const h = findHost(); if (h && h !== host) attach(h); else if (!h && host) detach(); }
     if (host && root) { if (gfVisible()) resumeWatch(); else pauseWatch(); }
     if (previewSit) return; // 미리 듣는 중엔 건드리지 않음
     detectGenre(false);
-    const sit = currentSituation();
+    let sit = currentSituation();
+    // 전투 중엔 화면이 잠깐 바뀌어도(스킬 고르기·적 지정·연출) 2초 동안은 전투 음악을 유지
+    if (currentSit === "battle" && sit !== "battle" && sit !== "summon" && sit !== null) {
+      if (!battleLeaveAt) battleLeaveAt = performance.now();
+      if (performance.now() - battleLeaveAt < 2000) { sit = "battle"; setTimeout(() => syncBgm(), 2100); }
+    } else battleLeaveAt = 0;
     currentSit = sit;
     updateNowLabel();
     const want = !!(sit && cfg.bgmOn && ctx && unlocked);
