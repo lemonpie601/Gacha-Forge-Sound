@@ -1211,8 +1211,10 @@
     }
     step++;
   }
+  let curKey = null;
   function startSynth(key) {
     if (!ctx) return;
+    curKey = key;
     const pk = key + "|" + activeTheme();
     if (seqTimer && presetKey === pk) return;
     const changing = !!seqTimer;
@@ -1651,9 +1653,14 @@
     clearTimeout(previewTimer); previewTimer = setTimeout(stopPreview, 12000);
     syncUi();
   }
+  // 설정을 바꿔도 곡을 처음부터 다시 시작하지 않고, 연주 중인 곡에 바로 반영(다음 음부터 새 설정)
+  let refreshTimer = 0;
   function restartMusic() {
-    presetKey = null;
-    if (previewSit) { const p = previewSit; previewSit = null; stopSynth(); previewBgm(p); } else syncBgm();
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      if (seqTimer && curKey) { preset = buildPreset(curKey); presetKey = curKey + "|" + activeTheme(); return; }
+      if (previewSit) { const p = previewSit; previewSit = null; previewBgm(p); } else { presetKey = null; syncBgm(); }
+    }, 120); // 슬라이더를 끄는 동안 수십 번 바뀌어도 한 번만 반영
   }
 
   // 설정 바뀔 때 엔진에 반영
