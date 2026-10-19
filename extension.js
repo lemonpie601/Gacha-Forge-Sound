@@ -86,8 +86,9 @@
     keywords: {},
     genreKeywords: {},
     // 버튼·화면
-    launcherPos: "hidden", launcherSize: 34, launcherOpacity: 0.8,
-    iconTopbar: "beforeFs",   // 상단바 아이콘 위치: beforeFs | beforeSettings | end | none
+    openMode: "icon",         // 여는 방법: icon(가챠포지 안 아이콘) | floating(떠 있는 버튼) | both
+    launcherPos: "br", launcherSize: 34, launcherOpacity: 0.8,
+    iconTopbar: "beforeFs",   // 상단바 아이콘 위치: beforeFs | beforeSettings | end
     iconBattle: true,         // 전투 조작줄에도 아이콘
     iconStyle: "speaker",     // speaker | note | gear | wave
     launcherOffsetX: 0, launcherOffsetY: 0,
@@ -106,6 +107,15 @@
     // 5.0: 떠 있는 버튼 대신 가챠포지 상단바 아이콘이 기본
     if (!cfg.migratedV5) { cfg.launcherPos = "hidden"; cfg.migratedV5 = true; }
     if (cfg.inGameIcon === false) { cfg.iconTopbar = "none"; cfg.iconBattle = false; } delete cfg.inGameIcon;
+    // 5.1: '넣지 않기'·'숨기기'를 여는 방법(아이콘/플로팅) 하나로 정리
+    if (!cfg.migratedV51) {
+      cfg.migratedV51 = true;
+      const iconsOff = cfg.iconTopbar === "none" && cfg.iconBattle === false;
+      const floatOn = cfg.launcherPos && cfg.launcherPos !== "hidden";
+      cfg.openMode = iconsOff ? "floating" : floatOn ? "both" : "icon";
+    }
+    if (cfg.iconTopbar === "none") cfg.iconTopbar = "beforeFs";
+    if (!cfg.launcherPos || cfg.launcherPos === "hidden") cfg.launcherPos = "br";
     if (cfg.hotkey === true) cfg.hotkey = "alt+s"; else if (cfg.hotkey === false) cfg.hotkey = "off";
   } catch {}
   let saveTimer = 0;
@@ -810,15 +820,14 @@
   }
   function ensureGameButtons(force) {
     if (!root) return;
-    const sig = [cfg.iconTopbar, cfg.iconBattle, cfg.iconStyle, cfg.hotkey].join("|");
+    const sig = [cfg.openMode, cfg.iconTopbar, cfg.iconBattle, cfg.iconStyle, cfg.hotkey].join("|");
     if (force || sig !== iconSig) { root.querySelectorAll("button[data-gfs]").forEach((b) => b.remove()); iconSig = sig; }
-    if (cfg.iconTopbar === "none" && !cfg.iconBattle) return;
+    if (cfg.openMode === "floating") return;
     if (gameSheet && !root.adoptedStyleSheets.includes(gameSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, gameSheet];
     for (const fsb of root.querySelectorAll(".gf-fs-bar")) {
       const box = fsb.parentElement; if (!box) continue;
       const native = fsb.classList.contains("icon-button");
       if (native) { // 상단바
-        if (cfg.iconTopbar === "none") continue;
         const settingsBtn = [...box.children].find((c) => c.getAttribute && /settings/i.test(c.getAttribute("aria-label") || ""));
         if (cfg.iconTopbar === "end") placeIn(box, "top", true, null, true);
         else placeIn(box, "top", true, cfg.iconTopbar === "beforeSettings" && settingsBtn ? settingsBtn : fsb, false);
@@ -1297,7 +1306,7 @@
       left: pos[1] === "l" ? `calc(env(safe-area-inset-left) + ${gx})` : "auto",
     });
     // 서랍이 숨긴 경우(display:none !important)는 건드리지 않음
-    if (launcher.style.getPropertyPriority("display") !== "important") launcher.style.display = pos === "hidden" ? "none" : "grid";
+    if (launcher.style.getPropertyPriority("display") !== "important") launcher.style.display = cfg.openMode === "icon" ? "none" : "grid";
   }
   placeLauncher();
 
@@ -1400,15 +1409,17 @@
       card("장르 단어 추가", Object.keys(GENRE_LABEL).map((g) => textarea("genreKeywords." + g, GENRE_LABEL[g], "예: 세계관 고유 명사")).join(""), "테마 '자동'일 때 장르를 짐작하는 데 써요.") +
       card("지금 감지 상태", `<div class="meter" data-meter></div><p class="hint" data-lastline></p>`),
     view:
-      card("가챠포지 안 아이콘",
-        select("iconTopbar", "상단바 아이콘 위치", [["beforeFs", "전체 화면 아이콘 앞 (기본)"], ["beforeSettings", "게임 설정 아이콘 앞"], ["end", "맨 끝"], ["none", "넣지 않기"]], "오른쪽 위 '월드·게임 설정·전체 화면' 아이콘 줄이에요") +
+      card("여는 방법", chips("openMode", [["icon", "아이콘"], ["floating", "플로팅"], ["both", "둘 다"]]),
+        "아이콘: 가챠포지 상단바와 전투 조작줄에 🔊이 들어가요. 플로팅: 화면 구석에 떠 있는 버튼으로 열어요(가챠포지 밖 화면에서도, 확장 서랍에도 담겨요).") +
+      `<div data-show="icon">` + card("아이콘 설정",
+        select("iconTopbar", "상단바 아이콘 위치", [["beforeFs", "전체 화면 아이콘 앞 (기본)"], ["beforeSettings", "게임 설정 아이콘 앞"], ["end", "맨 끝"]], "오른쪽 위 '월드·게임 설정·전체 화면' 아이콘 줄이에요") +
         toggle("iconBattle", "전투 조작줄에도 넣기", "Auto·배속·전체 화면 버튼 옆") +
         select("iconStyle", "아이콘 모양", [["speaker", "스피커"], ["note", "음표"], ["wave", "음파"], ["gear", "톱니"]]),
-        "가챠포지 버튼과 똑같은 모양으로 들어가고, 전체 화면에서도 팝업이 열려요. 다른 확장이 같은 줄에 버튼을 넣어도 서로 밀어내지 않아요.") +
-      card("떠 있는 버튼",
-        select("launcherPos", "위치", [["hidden", "숨기기 (기본)"], ["br", "오른쪽 아래"], ["bl", "왼쪽 아래"], ["tr", "오른쪽 위"], ["tl", "왼쪽 위"]], "가챠포지 밖 화면에서도 열고 싶을 때 켜요. 확장 서랍에 담겨 있으면 서랍이 우선이에요") +
+        "가챠포지 버튼과 같은 모양으로 들어가고, 전체 화면에서도 팝업이 열려요. 다른 확장이 같은 줄에 버튼을 넣어도 서로 밀어내지 않아요.") + `</div>` +
+      `<div data-show="floating">` + card("플로팅 버튼 설정",
+        select("launcherPos", "위치", [["br", "오른쪽 아래"], ["bl", "왼쪽 아래"], ["tr", "오른쪽 위"], ["tl", "왼쪽 위"]], "확장 서랍에 담겨 있으면 서랍이 우선이에요") +
         range("launcherOffsetX", "가로 간격", 0, 240, 4, "px", "다른 확장의 떠 있는 버튼과 겹치면 늘려요") + range("launcherOffsetY", "세로 간격", 0, 240, 4, "px") +
-        range("launcherSize", "크기", 24, 52, 2, "px") + range("launcherOpacity", "불투명도", 0.2, 1, 0.05)) +
+        range("launcherSize", "크기", 24, 52, 2, "px") + range("launcherOpacity", "불투명도", 0.2, 1, 0.05)) + `</div>` +
       card("단축키", select("hotkey", "설정 열기", [["alt+s", "Alt + S"], ["alt+m", "Alt + M"], ["ctrl+shift+s", "Ctrl + Shift + S"], ["off", "쓰지 않기"]], "다른 확장 단축키와 겹치면 바꾸거나 꺼요"), "Esc로 닫혀요."),
     adv:
       card("성능", toggle("lowPower", "저사양 모드", "울림 끄기, 음 밀도 낮추기, 화음 단순화") + range("sleepSec", "조용할 때 오디오 엔진 쉬기", 3, 60, 1, "s", "배경음이 꺼져 있을 때만 적용돼요")) +
@@ -1431,7 +1442,7 @@
       nav button { flex: 0 0 auto; background: none; color: var(--muted); border: 0; border-bottom: 2px solid transparent; padding: 9px 10px; cursor: pointer; font: inherit; }
       nav button[aria-selected="true"] { color: var(--fg-strong); border-bottom-color: var(--accent); font-weight: 600; }
       .body { overflow: auto; padding: 12px; background: var(--body); flex: 1; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-      section[hidden] { display: none; }
+      section[hidden], [data-show][hidden] { display: none; }
       .card2 { background: var(--card); border: 1px solid var(--card-bd); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
       .card2 h4 { margin: 0 0 6px; font-size: 13px; }
       .card2 h4 small { color: var(--muted); font-weight: 400; }
@@ -1546,6 +1557,7 @@
     });
     $$("[data-cfg][data-type='bool']").forEach((el) => { const v = getCfg(el.dataset.cfg); el.checked = v === true || (v === "" ? false : v !== false); });
     $$("[data-chip]").forEach((b) => b.setAttribute("aria-pressed", String(String(getCfg(b.dataset.chip)) === b.dataset.val)));
+    $$("[data-show]").forEach((el) => { el.hidden = !(cfg.openMode === "both" || cfg.openMode === el.dataset.show); });
     const gs = $("[data-guess]"); if (gs) gs.textContent = cfg.theme === "auto" ? "· 지금 " + THEME_LABEL[guessedTheme] + "로 판단" : "";
     $$(".snd").forEach((row) => {
       const k = row.dataset.snd, sc = sCfg(k);
@@ -1650,7 +1662,8 @@
       else syncBgm();
     }
     if (top.startsWith("launcher")) placeLauncher();
-    if (/^icon|^hotkey$|^sfxOn$|^bgmOn$/.test(top)) ensureGameButtons();
+    if (/^icon|^hotkey$|^sfxOn$|^bgmOn$|^openMode$/.test(top)) ensureGameButtons();
+    if (top === "openMode") { placeLauncher(); syncUi(); }
     if (top === "theme") { detectGenre(true); setSfxFx(activeTheme()); syncUi(); }
     if (top === "keywords" || top === "genreKeywords") wordCache.clear();
   }
