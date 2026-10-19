@@ -78,7 +78,7 @@
     // 배경음
     bgmOutside: false,   // 가챠포지 밖에서도 로비 음악
     tempo: 1,
-    melody: "auto", padInst: "auto", drums: "auto",
+    melody: "auto", padInst: "auto", drums: "auto", leadInst: "auto",
     density: 1,
     fade: 0.6,
     // 분위기 감지
@@ -146,8 +146,11 @@
     comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -6; comp.knee.value = 6; comp.ratio.value = 3; comp.attack.value = 0.002; comp.release.value = 0.15;
     masterOut = ctx.createGain();
-    comp.connect(masterOut).connect(ctx.destination);
-    sfxBus = ctx.createGain(); sfxBus.connect(comp);
+    // 맨 끝 안전 리미터: 어떤 상황에서도 갑자기 튀는 큰 소리를 눌러줌
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.1;
+    comp.connect(masterOut).connect(limiter).connect(ctx.destination);
+    sfxBus = ctx.createGain();
     bgmBus = ctx.createGain(); bgmBus.gain.value = 0; bgmBus.connect(comp);
 
     const len = Math.floor(ctx.sampleRate * 2.4);
@@ -163,6 +166,7 @@
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    buildFxChains(); fxTheme = null; setSfxFx(activeTheme()); // 효과음 처리 회로는 처음에 한 번만 연결
     applyVolumes();
     return ctx;
   }
@@ -414,41 +418,31 @@
   };
 
   // 테마별 효과음 체인: sfxBus → (테마 처리) → 압축기
-  let fxNodes = [], fxTheme = null;
+  let fxTheme = null;
   function curve(k) { const n = 1024, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = ((1 + k) * x) / (1 + k * Math.abs(x)); } return c; }
+  // 테마별 처리 회로를 처음에 한 번만 만들어 두고, 바꿀 땐 끊지 않고 볼륨만 부드럽게 넘김(끊으면 '탁·쾅' 튀는 소리가 남)
+  let fxChains = null;
+  function buildFxChains() {
+    fxChains = {};
+    const filt = (type, f, g = 0, q = 0.7) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.gain.value = g; b.Q.value = q; return b; };
+    const gain = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
+    const chain = (name, wire) => { const inp = gain(0); sfxBus.connect(inp); wire(inp); fxChains[name] = inp; };
+    chain("fantasy", (i) => i.connect(comp));
+    chain("hunter", (i) => { // 살짝 찌그러진 디지털 질감 + 또렷한 고음
+      const dry = gain(0.75), sh = ctx.createWaveShaper(), wetG = gain(0.4), hs = filt("highshelf", 3500, 4);
+      sh.curve = curve(14); sh.oversample = "2x";
+      i.connect(dry).connect(hs); i.connect(sh).connect(wetG).connect(hs); hs.connect(comp);
+    });
+    chain("daily", (i) => { const lp = filt("lowpass", 7000), ls = filt("lowshelf", 250, 3); i.connect(ls).connect(lp).connect(comp); }); // 따뜻한 테이프
+    chain("dark", (i) => { const lp = filt("lowpass", 4200), send = gain(0.35); i.connect(lp).connect(comp); lp.connect(send).connect(reverbIn); }); // 어둡고 깊게
+    chain("otome", (i) => { const hs = filt("highshelf", 6000, 4), send = gain(0.15); i.connect(hs).connect(comp); hs.connect(send).connect(reverbIn); }); // 반짝이게
+  }
   function setSfxFx(theme) {
     if (!ctx || fxTheme === theme) return;
+    if (!fxChains) buildFxChains();
     fxTheme = theme;
-    try { sfxBus.disconnect(); } catch {}
-    for (const n of fxNodes) { try { n.disconnect(); } catch {} }
-    fxNodes = [];
-    const mk = (n) => (fxNodes.push(n), n);
-    const filt = (type, f, g = 0, q = 0.7) => { const b = mk(ctx.createBiquadFilter()); b.type = type; b.frequency.value = f; b.gain.value = g; b.Q.value = q; return b; };
-    const gain = (v) => { const g = mk(ctx.createGain()); g.gain.value = v; return g; };
-    switch (theme) {
-      case "hunter": { // 살짝 찌그러진 디지털 질감 + 또렷한 고음
-        const dry = gain(0.75), sh = mk(ctx.createWaveShaper()), wetG = gain(0.4), hs = filt("highshelf", 3500, 4);
-        sh.curve = curve(14); sh.oversample = "2x";
-        sfxBus.connect(dry).connect(hs); sfxBus.connect(sh).connect(wetG).connect(hs); hs.connect(comp);
-        break;
-      }
-      case "daily": { // 따뜻한 테이프 느낌
-        const lp = filt("lowpass", 7000), ls = filt("lowshelf", 250, 3);
-        sfxBus.connect(ls).connect(lp).connect(comp);
-        break;
-      }
-      case "dark": { // 어둡고 깊게, 울림 추가
-        const lp = filt("lowpass", 4200), send = gain(0.35);
-        sfxBus.connect(lp).connect(comp); lp.connect(send).connect(reverbIn);
-        break;
-      }
-      case "otome": { // 반짝이는 고음 + 은은한 울림
-        const hs = filt("highshelf", 6000, 4), send = gain(0.15);
-        sfxBus.connect(hs).connect(comp); hs.connect(send).connect(reverbIn);
-        break;
-      }
-      default: sfxBus.connect(comp);
-    }
+    const t = ctx.currentTime;
+    for (const k in fxChains) { const g = fxChains[k].gain; g.cancelScheduledValues(t); g.setTargetAtTime(k === (fxChains[theme] ? theme : "fantasy") ? 1 : 0, t, 0.03); }
   }
 
   // 시그니처 효과음용 도구
@@ -1081,6 +1075,8 @@
     p.chords = b.chords.map(CHORD_XFORM[th] || CHORD_XFORM.fantasy);
     const ld = LEAD[th] || LEAD.fantasy;
     p.lead = cfg.lowPower || mood === "glitch" ? null : { ...ld, dens: Math.min(0.9, ld.dens * (b.energy >= 2 ? 1.25 : b.energy === 0 ? 0.65 : 1) * cfg.density) };
+    if (cfg.leadInst === "none") p.lead = null;
+    else if (cfg.leadInst !== "auto" && p.lead) p.lead.inst = cfg.leadInst;
     p.mood = mood;
     return p;
   }
@@ -1092,6 +1088,7 @@
     padNodes = [];
   }
   function startPad(ch, at, beat) {
+    if (preset.pad === "none") { stopPad(at); return; } // 배경 화음 없음
     stopPad(at);
     for (const m of ch) for (const det of cfg.lowPower ? [0] : [-7, 7]) {
       const o = ctx.createOscillator(); o.type = preset.pad; o.frequency.value = mtof(m - 12); o.detune.value = det + (preset.glitch ? (Math.random() - 0.5) * 60 : 0);
@@ -1169,7 +1166,7 @@
       else if (r < 0.7) snare(t, 0.06, 500 + Math.random() * 5000, 0.05);
       else { step++; return; } // 한 칸 통째로 끊김
     }
-    if (Math.random() < preset.dens || s % 4 === 0) {
+    if (preset.arp !== "none" && (Math.random() < preset.dens || s % 4 === 0)) {
       let m = ch[preset.pat[s % preset.pat.length] % ch.length] + preset.oct;
       if (preset.minorBell && Math.random() < 0.15) m += 1; // 살짝 어긋난 불협음
       const short = preset.staccato || preset.drums === "battle" || preset.drums === "pulse" || preset.drums === "orch";
@@ -1192,7 +1189,7 @@
     // 테마별 양념
     if (preset.theme === "otome" && s === 0) fmNote(mtof(ch[0] + 36), at, 1.4, 0.018, 7.01, 0.5, 0.8); // 마디 첫 박 '띵'
     if (preset.theme === "daily" && s % 4 === 0) crackle(at, beat * 2);
-    if (preset.theme === "dark" && (s === 0 || s === 8) && /calm|mystery|dark|sad|lobby/.test(preset.mood)) { kick(at, 0.12); kick(at + beat * 0.45, 0.08); } // 심장 박동
+    if (introLeft <= 0 && preset.theme === "dark" && (s === 0 || s === 8) && /calm|mystery|dark|sad|lobby/.test(preset.mood)) { kick(at, 0.1); kick(at + beat * 0.45, 0.065); } // 심장 박동 (곡 시작 첫 마디엔 없음)
     if (preset.theme === "hunter" && (preset.drums === "battle" || preset.drums === "pulse")) hat(at + eighth / 2, 0.012, 0.025); // 16비트 하이햇
     if (introLeft > 0) { introLeft--; step++; return; } // 첫 마디는 멜로디·화음만 (위에서 이미 연주)
     switch (preset.drums) {
@@ -1370,8 +1367,8 @@
   const textarea = (path, label, ph) => `<div class="ctl"><span class="lbl">${label}</span><textarea data-cfg="${path}" data-type="str" rows="2" placeholder="${esc(ph)}"></textarea></div>`;
   const card = (title, body, hint = "") => `<div class="card2"><h4>${title}</h4>${hint ? `<p class="hint">${hint}</p>` : ""}${body}</div>`;
 
-  const INSTR = [["auto", "테마 따라"], ["musicbox", "오르골"], ["bell", "종·크리스털"], ["pluck", "하프·피치카토"], ["epiano", "전자 피아노"], ["square", "8비트 신스"], ["sine", "부드러운 사인"], ["triangle", "플루트 같은 삼각파"]];
-  const PADS = [["auto", "테마 따라"], ["sine", "부드럽게"], ["triangle", "따뜻하게"], ["sawtooth", "선명하게(현악·신스)"]];
+  const INSTR = [["auto", "테마 따라"], ["none", "없음"], ["musicbox", "오르골"], ["bell", "종·크리스털"], ["pluck", "하프·피치카토"], ["epiano", "전자 피아노"], ["square", "8비트 신스"], ["sine", "부드러운 사인"], ["triangle", "플루트 같은 삼각파"]];
+  const PADS = [["auto", "테마 따라"], ["none", "없음"], ["sine", "부드럽게"], ["triangle", "따뜻하게"], ["sawtooth", "선명하게(현악·신스)"]];
   const DRUMS = [["auto", "테마·상황 따라"], ["none", "없음"], ["soft", "잔잔한 박자"], ["lofi", "로파이"], ["orch", "오케스트라 팀파니"], ["battle", "배틀 드럼"], ["pulse", "긴박한 펄스"], ["bounce", "통통 튀는"]];
   const MOOD_HINT = { calm: "예: 차분, 고요, 잔잔", happy: "예: 소풍, 선물, 생일", comedy: "예: 꽈당, 엥?, 어버버", romance: "예: 손깍지, 고백, 두근", sad: "예: 작별, 흐느, 빈자리", tense: "예: 추격, 시험장, 결투", mystery: "예: 수정구, 장막, 계시", dark: "예: 독점, 가두다, 눈빛이 탁", glitch: "예: 화면이 멈, 문자 깨짐" };
   const GENRE_LABEL = { otome: "오토메·로판", hunter: "헌터·액션", daily: "일상·힐링", fantasy: "정통 판타지", dark: "다크·호러" };
@@ -1407,7 +1404,7 @@
       card("효과음 전체", range("boom", "둥 소리(저음 쿵) 세기", 0, 1.5, 0.05, "pct", "소환 공개·타격·출격 때 깔리는 저음이에요. 0%면 꺼져요") + range("reverb", "울림(리버브)", 0, 0.8, 0.02) + range("typingGap", "타자음 간격", 20, 150, 5, "ms", "숫자가 클수록 타자음이 드문드문 나요") + toggle("elemHits", "속성별 타격음", "불·물·바람·대지·빛·어둠 스킬마다 다른 타격음") + range("rewardChain", "보상 아이템 연속 재생", 1, 10, 1, "n", "보상 화면에서 최대 몇 종류까지 차례로 울릴지")) +
       card("소리별 설정", soundRows, "그룹 오른쪽 스위치로 묶음째 끌 수 있어요. 소리마다 볼륨·음높이·내 파일 교체가 돼요. 파일은 이 기기에만 저장돼요."),
     bgm:
-      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "멜로디 악기", INSTR) + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
+      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
       card("상황별 음악", sitRows, "상황마다 자동 생성·내 파일·끄기 중에 골라요. ▶는 12초 미리 듣기예요."),
     mood:
       card("감지 방식", range("sensitivity", "감도", 0.5, 2, 0.05, "x", "높이면 작은 단서에도 분위기가 바뀌어요") + range("minHold", "한 분위기 최소 유지 시간", 3, 60, 1, "s", "강한 장면은 이 시간의 절반만 지나도 바뀌어요")) +
@@ -1664,7 +1661,7 @@
   }
 
   // 설정 바뀔 때 엔진에 반영
-  const MUSIC_KEYS = new Set(["tempo", "melody", "padInst", "drums", "density", "lowPower", "theme"]);
+  const MUSIC_KEYS = new Set(["tempo", "melody", "padInst", "drums", "leadInst", "density", "lowPower", "theme"]);
   function applyChange(path) {
     const top = path.split(".")[0];
     save(); applyVolumes(); syncOutputs();
