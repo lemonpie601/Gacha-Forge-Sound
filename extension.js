@@ -100,34 +100,109 @@
     sleepSec: 8,
   };
   const LS = "gf-sound:v2";
-  let cfg = { ...DEFAULTS };
-  try {
-    const remote = api && api.storage ? await api.storage.get() : null;
-    const local = JSON.parse(localStorage.getItem(LS) || "null");
-    cfg = { ...DEFAULTS, ...(local || {}), ...((remote && remote.cfg) || {}) };
-    for (const k of ["sounds", "bgm", "groups", "moodEnabled", "keywords", "genreKeywords"]) cfg[k] = { ...(cfg[k] || {}) };
-    // 5.0: 떠 있는 버튼 대신 가챠포지 상단바 아이콘이 기본
-    if (!cfg.migratedV5) { cfg.launcherPos = "hidden"; cfg.migratedV5 = true; }
-    if (cfg.inGameIcon === false) { cfg.iconTopbar = "none"; cfg.iconBattle = false; } delete cfg.inGameIcon;
-    // 5.1: '넣지 않기'·'숨기기'를 여는 방법(아이콘/플로팅) 하나로 정리
-    if (!cfg.migratedV51) {
-      cfg.migratedV51 = true;
-      const iconsOff = cfg.iconTopbar === "none" && cfg.iconBattle === false;
-      const floatOn = cfg.launcherPos && cfg.launcherPos !== "hidden";
-      cfg.openMode = iconsOff ? "floating" : floatOn ? "both" : "icon";
+  const MAPS = ["sounds", "bgm", "groups", "moodEnabled", "keywords", "genreKeywords"];
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  // 예전 버전에서 저장된 설정만 한 번 옮김(새로 설치·초기화한 설정에는 손대지 않음)
+  function migrate(stored) {
+    const c = { ...stored };
+    if (c.schema >= 2) return c;
+    if (!c.migratedV51) {
+      const legacyHidden = !c.migratedV5 || !c.launcherPos || c.launcherPos === "hidden";
+      const iconsOff = c.inGameIcon === false || (c.iconTopbar === "none" && c.iconBattle === false);
+      c.openMode = iconsOff ? "floating" : legacyHidden ? "icon" : "both";
     }
-    if (cfg.iconTopbar === "none") cfg.iconTopbar = "beforeFs";
-    if (!cfg.launcherPos || cfg.launcherPos === "hidden") cfg.launcherPos = "br";
-    if (cfg.hotkey === true) cfg.hotkey = "alt+s"; else if (cfg.hotkey === false) cfg.hotkey = "off";
-  } catch {}
-  let saveTimer = 0;
+    if (c.inGameIcon === false) { c.iconTopbar = "beforeFs"; c.iconBattle = false; }
+    delete c.inGameIcon; delete c.migratedV5; delete c.migratedV51;
+    if (c.iconTopbar === "none") c.iconTopbar = "beforeFs";
+    if (!c.launcherPos || c.launcherPos === "hidden") c.launcherPos = "br";
+    if (c.hotkey === true) c.hotkey = "alt+s"; else if (c.hotkey === false) c.hotkey = "off";
+    c.schema = 2;
+    return c;
+  }
+  function normalize(stored) {
+    const c = { ...clone(DEFAULTS), ...(stored ? migrate(stored) : {}), schema: 2 };
+    for (const k of MAPS) c[k] = { ...(c[k] || {}) };
+    return c;
+  }
+
+  // 1) 이 기기 사본(localStorage)과 2) 서버 사본을 따로 읽음.
+  //    서버를 못 읽어도 기본값으로 돌아가지 않고 이 기기 사본을 씀.
+  let localStored = null, remoteStored = null, remoteOk = false;
+  try { localStored = JSON.parse(localStorage.getItem(LS) || "null"); } catch {}
+  try { if (api && api.storage) { const r = await api.storage.get(); remoteStored = r && r.cfg ? r.cfg : null; remoteOk = true; } } catch {}
+  let cfg = normalize(remoteStored || localStored);
+  // 서버와 마지막으로 맞춘 상태. 저장할 땐 이것과 비교해서 '내가 바꾼 칸'만 서버에 반영함
+  let synced = clone(cfg);
+
+  // 내가 바꾼 칸 찾기 (맵은 한 칸씩)
+  function changedPaths(cur, base) {
+    const out = [];
+    for (const k of new Set([...Object.keys(cur), ...Object.keys(base)])) {
+      if (MAPS.includes(k)) {
+        const a = cur[k] || {}, b = base[k] || {};
+        for (const sk of new Set([...Object.keys(a), ...Object.keys(b)])) if (JSON.stringify(a[sk]) !== JSON.stringify(b[sk])) out.push([k, sk]);
+      } else if (JSON.stringify(cur[k]) !== JSON.stringify(base[k])) out.push([k]);
+    }
+    return out;
+  }
+  function applyPaths(target, src, paths) {
+    for (const [k, sk] of paths) {
+      if (sk === undefined) { if (src[k] === undefined) delete target[k]; else target[k] = clone(src[k]); }
+      else { target[k] = { ...(target[k] || {}) }; if (src[k] && src[k][sk] !== undefined) target[k][sk] = clone(src[k][sk]); else delete target[k][sk]; }
+    }
+    return target;
+  }
+
+  let saveTimer = 0, saving = null, fullOverwrite = false, onRemoteApplied = null;
+  // 저장: 서버의 최신 설정을 먼저 받아서, 이 기기에서 바꾼 칸만 덮어씀
+  // → 다른 기기·다른 탭이 오래된 설정을 통째로 덮어써 '초기화'처럼 보이던 문제 방지
+  async function flush() {
+    clearTimeout(saveTimer); saveTimer = 0;
+    try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch {}
+    if (!api || !api.storage) return;
+    if (saving) { await saving; }
+    const paths = fullOverwrite ? null : changedPaths(cfg, synced);
+    if (paths && !paths.length) return;
+    saving = (async () => {
+      try {
+        let latest = null;
+        if (!fullOverwrite) { const r = await api.storage.get(); latest = r && r.cfg ? normalize(r.cfg) : null; }
+        const merged = fullOverwrite || !latest ? clone(cfg) : applyPaths(latest, cfg, paths);
+        await api.storage.patch({ cfg: merged });
+        remoteOk = true; fullOverwrite = false;
+        const changedElsewhere = latest && changedPaths(merged, cfg).length;
+        cfg = merged; synced = clone(merged);
+        try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch {}
+        if (changedElsewhere && onRemoteApplied) onRemoteApplied();
+      } catch { remoteOk = false; }
+      finally { saving = null; updateSyncLabel(); }
+    })();
+    return saving;
+  }
   const save = () => {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch {}
-      try { api && api.storage && api.storage.patch({ cfg }).catch(() => {}); } catch {}
-    }, 600);
+    try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch {}
+    saveTimer = setTimeout(flush, 400);
   };
+  // 다른 기기에서 바꾼 설정 불러오기 (내가 아직 저장 안 한 칸은 지킴)
+  async function pullRemote() {
+    if (!api || !api.storage || saving || saveTimer) return;
+    try {
+      const r = await api.storage.get(); remoteOk = true;
+      if (!r || !r.cfg) { if (changedPaths(cfg, synced).length || !remoteStored) { fullOverwrite = !r || !r.cfg; flush(); } return; }
+      const remote = normalize(r.cfg);
+      const mine = changedPaths(cfg, synced);
+      const next = applyPaths(clone(remote), cfg, mine);
+      const differs = changedPaths(next, cfg).length;
+      synced = remote; cfg = next;
+      if (mine.length) save();
+      if (differs && onRemoteApplied) onRemoteApplied();
+    } catch { remoteOk = false; }
+    updateSyncLabel();
+  }
+  let updateSyncLabel = () => {};
+  // 서버를 못 읽고 시작했다면 연결되는 대로 바꾼 칸만 올림
+  if (!remoteOk && api && api.storage) setTimeout(pullRemote, 3000);
   const sCfg = (name) => ({ on: true, vol: 1, pitch: 1, ...(cfg.sounds[name] || {}) });
   const bgmMode = (sit) => cfg.bgm[sit] || "synth";
 
@@ -1289,7 +1364,8 @@
     stopFile(); startSynth(sit);
   }
   every(() => syncBgm(), 2500);
-  const onVis = () => syncBgm();
+  // 이 탭으로 돌아오면 다른 기기에서 바꾼 설정을 불러오고, 떠날 땐 대기 중인 설정을 바로 저장
+  const onVis = () => { syncBgm(); if (document.hidden) { if (saveTimer) flush(); } else pullRemote(); };
   document.addEventListener("visibilitychange", onVis);
   later(() => document.removeEventListener("visibilitychange", onVis));
 
@@ -1438,6 +1514,7 @@
     adv:
       card("성능", toggle("lowPower", "저사양 모드", "울림 끄기, 음 밀도 낮추기, 화음 단순화") + range("sleepSec", "조용할 때 오디오 엔진 쉬기", 3, 60, 1, "s", "배경음이 꺼져 있을 때만 적용돼요")) +
       card("설정 백업", `<div class="row-btns"><button class="sb" data-act="export">설정 내보내기</button><button class="sb" data-act="import">설정 가져오기</button><button class="sb danger" data-act="reset">모두 초기화</button></div><p class="hint">내 소리 파일은 설정 파일에 들어가지 않아요(기기에 따로 저장).</p>`) +
+      card("설정 저장", `<p class="hint" data-sync></p><div class="row-btns"><button class="sb" data-act="pull">다른 기기 설정 지금 불러오기</button></div>`) +
       card("정보", `<p class="hint" data-info></p>`),
   };
 
@@ -1589,6 +1666,8 @@
       em.textContent = fn || "파일 없음"; em.classList.toggle("custom", !!fn);
     });
     const info = $("[data-info]");
+    const sy = $("[data-sync]");
+    if (sy) sy.textContent = !api || !api.storage ? "이 기기에만 저장돼요." : remoteOk ? "✓ 마리나라 서버에 저장 중이에요. 다른 기기도 같은 설정을 써요." : "⚠ 지금 서버에 연결이 안 돼서 이 기기에만 저장 중이에요. 연결되면 바꾼 칸만 자동으로 올려요.";
     if (info) info.textContent = `효과음 ${SOUND_LIST.reduce((n, [, l]) => n + l.length, 0)}종 · 배경음 상황 ${SITUATIONS.length}가지 · 내 파일 ${customNames.size}개 · 오디오 ${ctx ? ctx.state : "꺼짐"} · 가챠포지 ${host ? "연결됨" : "찾는 중"}`;
     syncOutputs(); updateNowLabel(); applyThemeColors();
   }
@@ -1617,7 +1696,7 @@
     try { if (dlg.open) dlg.close(); dlg.showModal(); }
     catch { dlg.setAttribute("open", ""); Object.assign(dlg.style, { position: "fixed", display: "block" }); } // 아주 오래된 브라우저용
   }
-  function openPopup() { unlock(); popOpen = true; showDlg(); syncUi(); renderMeter(); }
+  function openPopup() { unlock(); popOpen = true; showDlg(); syncUi(); renderMeter(); pullRemote(); }
   function closePopup() { popOpen = false; try { dlg.close(); } catch { dlg.removeAttribute("open"); } stopPreview(); }
   dlg.addEventListener("cancel", (e) => { e.preventDefault(); closePopup(); }); // Esc
   // 팝업을 연 채로 전체 화면을 켜고 끄면 다시 맨 위로 올림
@@ -1716,10 +1795,11 @@
       document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
       return;
     }
+    if (d.act === "pull") { await flush(); await pullRemote(); syncUi(); return; }
     if (d.act === "import") { const inp = $("[data-import]"); inp.value = ""; inp.click(); return; }
     if (d.act === "reset") {
       if (!confirm("소리 설정을 전부 처음으로 되돌릴까요? (내 소리 파일은 그대로 남아요)")) return;
-      cfg = JSON.parse(JSON.stringify(DEFAULTS)); save(); applyVolumes(); placeLauncher(); restartMusic(); syncUi();
+      cfg = normalize(null); fullOverwrite = true; save(); applyVolumes(); placeLauncher(); restartMusic(); ensureGameButtons(); syncUi();
     }
   });
   sr.addEventListener("input", (e) => {
@@ -1772,7 +1852,7 @@
     try {
       const j = JSON.parse(await f.text());
       if (!j || j.kind !== "gacha-forge-sound-settings" || !j.cfg) throw new Error();
-      cfg = { ...JSON.parse(JSON.stringify(DEFAULTS)), ...j.cfg };
+      cfg = normalize(j.cfg); fullOverwrite = true;
       save(); applyVolumes(); placeLauncher(); restartMusic(); wordCache.clear(); syncUi();
     } catch { alert("가챠포지 소리 설정 파일이 아니에요."); }
   });
@@ -1780,12 +1860,18 @@
   /* =========================================================
    * 시작 / 정리
    * ========================================================= */
+  // 다른 기기에서 바뀐 설정이 들어오면 소리·버튼·화면에 바로 반영
+  onRemoteApplied = () => { applyVolumes(); placeLauncher(); ensureGameButtons(); restartMusic(); wordCache.clear(); if (popOpen) syncUi(); };
+  updateSyncLabel = () => { if (popOpen) { const sy = $("[data-sync]"); if (sy) syncUi(); } };
+  // 팝업을 열어 둔 동안엔 20초마다 다른 기기 변경 확인
+  every(() => { if (popOpen && !document.hidden) pullRemote(); }, 20000);
   await loadCustomIndex().catch(() => {});
   syncUi();
   const h0 = findHost(); if (h0) attach(h0);
 
   function dispose() {
-    clearTimeout(saveTimer); clearTimeout(structTimer); clearTimeout(previewTimer);
+    if (saveTimer) flush(); // 저장 대기 중인 설정은 버리지 않고 바로 저장
+    clearTimeout(structTimer); clearTimeout(previewTimer);
     for (const id of timers) clearInterval(id);
     stopSynth(); stopFile(0.1);
     try { root && root.querySelectorAll(".gf-sound-btn").forEach((b) => b.remove()); if (root && gameSheet) root.adoptedStyleSheets = root.adoptedStyleSheets.filter((x) => x !== gameSheet); } catch {}
