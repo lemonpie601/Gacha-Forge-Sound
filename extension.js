@@ -86,8 +86,12 @@
     keywords: {},
     genreKeywords: {},
     // 버튼·화면
-    launcherPos: "br", launcherSize: 34, launcherOpacity: 0.8,
-    hotkey: true,
+    launcherPos: "hidden", launcherSize: 34, launcherOpacity: 0.8,
+    iconTopbar: "beforeFs",   // 상단바 아이콘 위치: beforeFs | beforeSettings | end | none
+    iconBattle: true,         // 전투 조작줄에도 아이콘
+    iconStyle: "speaker",     // speaker | note | gear | wave
+    launcherOffsetX: 0, launcherOffsetY: 0,
+    hotkey: "alt+s",          // alt+s | alt+m | ctrl+shift+s | off
     // 고급
     lowPower: false,
     sleepSec: 8,
@@ -99,6 +103,10 @@
     const local = JSON.parse(localStorage.getItem(LS) || "null");
     cfg = { ...DEFAULTS, ...(local || {}), ...((remote && remote.cfg) || {}) };
     for (const k of ["sounds", "bgm", "groups", "moodEnabled", "keywords", "genreKeywords"]) cfg[k] = { ...(cfg[k] || {}) };
+    // 5.0: 떠 있는 버튼 대신 가챠포지 상단바 아이콘이 기본
+    if (!cfg.migratedV5) { cfg.launcherPos = "hidden"; cfg.migratedV5 = true; }
+    if (cfg.inGameIcon === false) { cfg.iconTopbar = "none"; cfg.iconBattle = false; } delete cfg.inGameIcon;
+    if (cfg.hotkey === true) cfg.hotkey = "alt+s"; else if (cfg.hotkey === false) cfg.hotkey = "off";
   } catch {}
   let saveTimer = 0;
   const save = () => {
@@ -765,7 +773,65 @@
     structTimer = setTimeout(() => { structTimer = 0; try { onStructural(); } catch {} }, 220);
   }
   let resultSeen = null;
+  /* ---------- 가챠포지 상단바·전투 조작줄에 소리 아이콘 넣기 ---------- */
+  const ICONS = {
+    speaker: '<path d="M11 5 6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path class="gfs-waves" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    note: '<path d="M9 18V5l11-2v13" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/><circle class="gfs-waves" cx="17" cy="16" r="3" stroke="currentColor" stroke-width="2"/>',
+    wave: '<path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 10v4M21 12h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="gfs-waves" d="M11 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    gear: '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path class="gfs-waves" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  };
+  const iconSvg = () => `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${ICONS[cfg.iconStyle] || ICONS.speaker}</svg>`;
+  // 우리 버튼에만 적용되는 스타일 (가챠포지·다른 확장 버튼엔 영향 없음)
+  const gameSheet = ("adoptedStyleSheets" in Document.prototype && "replaceSync" in CSSStyleSheet.prototype) ? new CSSStyleSheet() : null;
+  if (gameSheet) gameSheet.replaceSync(`button[data-gfs]:not(.icon-button){display:inline-flex;align-items:center;justify-content:center;padding:calc(var(--f,16px)*0.35) calc(var(--f,16px)*0.55)}
+    button[data-gfs]:not(.icon-button) svg{display:block;width:calc(var(--f,16px)*1.3);height:calc(var(--f,16px)*1.3)}
+    button[data-gfs].gfs-muted .gfs-waves{opacity:.25}`);
+  let iconSig = "";
+  function makeGameButton(kind, native) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = (native ? "icon-button " : "") + "gf-sound-btn";
+    b.dataset.gfs = kind;                      // 다른 버튼과 구분하는 고유 표시
+    b.setAttribute("aria-label", "소리 설정");
+    b.title = "소리 설정" + (cfg.hotkey !== "off" ? ` (${cfg.hotkey.toUpperCase()})` : "");
+    b.innerHTML = iconSvg();
+    // 우리 클릭이 가챠포지나 다른 확장의 클릭 처리로 번지지 않게 막음
+    const stop = (e) => { e.stopPropagation(); };
+    b.addEventListener("pointerdown", stop);
+    b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); unlock(); popOpen ? closePopup() : openPopup(); });
+    return b;
+  }
+  function placeIn(container, kind, native, ref, atEnd) {
+    // 이미 들어가 있으면 그대로 둠 → 다른 확장이 같은 줄에 버튼을 넣어도 서로 자리싸움(무한 재배치)을 하지 않음
+    if (container.querySelector(`:scope > button[data-gfs="${kind}"]`)) return;
+    const b = makeGameButton(kind, native);
+    if (atEnd || !ref || ref.parentNode !== container) container.appendChild(b);
+    else container.insertBefore(b, ref);
+  }
+  function ensureGameButtons(force) {
+    if (!root) return;
+    const sig = [cfg.iconTopbar, cfg.iconBattle, cfg.iconStyle, cfg.hotkey].join("|");
+    if (force || sig !== iconSig) { root.querySelectorAll("button[data-gfs]").forEach((b) => b.remove()); iconSig = sig; }
+    if (cfg.iconTopbar === "none" && !cfg.iconBattle) return;
+    if (gameSheet && !root.adoptedStyleSheets.includes(gameSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, gameSheet];
+    for (const fsb of root.querySelectorAll(".gf-fs-bar")) {
+      const box = fsb.parentElement; if (!box) continue;
+      const native = fsb.classList.contains("icon-button");
+      if (native) { // 상단바
+        if (cfg.iconTopbar === "none") continue;
+        const settingsBtn = [...box.children].find((c) => c.getAttribute && /settings/i.test(c.getAttribute("aria-label") || ""));
+        if (cfg.iconTopbar === "end") placeIn(box, "top", true, null, true);
+        else placeIn(box, "top", true, cfg.iconTopbar === "beforeSettings" && settingsBtn ? settingsBtn : fsb, false);
+      } else if (cfg.iconBattle) { // 전투 조작줄
+        placeIn(box, "battle", false, fsb, false);
+      }
+    }
+    const muted = !cfg.sfxOn && !cfg.bgmOn;
+    root.querySelectorAll("button[data-gfs]").forEach((b) => b.classList.toggle("gfs-muted", muted));
+  }
+
   function onStructural() {
+    ensureGameButtons();
     watchVn();
     const res = root && root.querySelector('[data-screen="result"] .rs-verdict h2');
     if (res && res !== resultSeen) {
@@ -794,6 +860,19 @@
     analyzeLine(el);
   }
 
+  // 최적화: 가챠포지가 안 보이면 화면 감시를 멈추고, 다시 보이면 이어서 감시
+  let observing = false;
+  const MO_OPTS = { childList: true, subtree: true, attributes: true, attributeFilter: ["class"], attributeOldValue: true };
+  function observeRoot() { if (rootMO && root && !observing) { rootMO.observe(root, MO_OPTS); observing = true; } }
+  function pauseWatch() {
+    if (!observing) return;
+    rootMO && rootMO.disconnect(); observing = false;
+    vnMO && vnMO.disconnect(); vnMO = null; vnEl = null;
+  }
+  function resumeWatch() {
+    if (observing || !root) return;
+    observeRoot(); readCurrencies(true); onStructural();
+  }
   function attach(h) {
     detach();
     host = h; root = h.shadowRoot;
@@ -801,13 +880,14 @@
     root.addEventListener("animationstart", onAnim, true);
     root.addEventListener("click", onClick, true);
     rootMO = new MutationObserver(onMutations);
-    rootMO.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"], attributeOldValue: true });
+    observeRoot();
     readCurrencies(true);
     onStructural();
+    ensureGameButtons();
   }
   function detach() {
     if (root) { root.removeEventListener("animationstart", onAnim, true); root.removeEventListener("click", onClick, true); }
-    rootMO && rootMO.disconnect(); rootMO = null;
+    rootMO && rootMO.disconnect(); rootMO = null; observing = false;
     vnMO && vnMO.disconnect(); vnMO = null; vnEl = null;
     host = null; root = null;
   }
@@ -1167,6 +1247,7 @@
   let currentSit = null, previewSit = null;
   async function syncBgm() {
     if (!host || !host.isConnected) { const h = findHost(); if (h && h !== host) attach(h); else if (!h && host) detach(); }
+    if (host && root) { if (gfVisible()) resumeWatch(); else pauseWatch(); }
     if (previewSit) return; // 미리 듣는 중엔 건드리지 않음
     detectGenre(false);
     const sit = currentSituation();
@@ -1203,28 +1284,38 @@
   later(() => launcher.remove());
   const LAUNCH_COLORS = { fantasy: ["rgba(16,21,31,.68)", "#F2C14E"], otome: ["rgba(238,111,160,.9)", "#FFFFFF"], hunter: ["rgba(7,12,20,.8)", "#22D3EE"], daily: ["rgba(255,251,244,.95)", "#E8964A"], dark: ["rgba(13,9,11,.85)", "#C2334D"] };
   function placeLauncher() {
-    const size = cfg.launcherSize + "px", g = "12px";
+    const size = cfg.launcherSize + "px", gx = 12 + (cfg.launcherOffsetX || 0) + "px", gy = 12 + (cfg.launcherOffsetY || 0) + "px";
     const pos = cfg.launcherPos;
     Object.assign(launcher.style, {
       position: "fixed", width: size, height: size, borderRadius: "50%", border: "0", padding: "0",
       background: LAUNCH_COLORS[activeTheme()][0], color: LAUNCH_COLORS[activeTheme()][1], placeItems: "center", cursor: "pointer",
       boxShadow: "0 4px 14px rgba(0,0,0,.25)",
       zIndex: "2147482000", opacity: String(cfg.launcherOpacity),
-      top: pos[0] === "t" ? `calc(env(safe-area-inset-top) + ${g})` : "auto",
-      bottom: pos[0] === "b" ? `calc(env(safe-area-inset-bottom) + ${g})` : "auto",
-      right: pos[1] === "r" ? `calc(env(safe-area-inset-right) + ${g})` : "auto",
-      left: pos[1] === "l" ? `calc(env(safe-area-inset-left) + ${g})` : "auto",
+      top: pos[0] === "t" ? `calc(env(safe-area-inset-top) + ${gy})` : "auto",
+      bottom: pos[0] === "b" ? `calc(env(safe-area-inset-bottom) + ${gy})` : "auto",
+      right: pos[1] === "r" ? `calc(env(safe-area-inset-right) + ${gx})` : "auto",
+      left: pos[1] === "l" ? `calc(env(safe-area-inset-left) + ${gx})` : "auto",
     });
     // 서랍이 숨긴 경우(display:none !important)는 건드리지 않음
     if (launcher.style.getPropertyPriority("display") !== "important") launcher.style.display = pos === "hidden" ? "none" : "grid";
   }
   placeLauncher();
 
+  // 팝업은 <dialog>로 브라우저 최상위 레이어(top layer)에 띄움 → 가챠포지 전체 화면 위에도 보임
+  const dlg = document.createElement("dialog");
+  dlg.id = "gf-sound-dialog";
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-label", "가챠포지 소리 설정");
+  Object.assign(dlg.style, { padding: "0", margin: "0", border: "0", background: "transparent", width: "100vw", height: "100dvh", maxWidth: "100vw", maxHeight: "100dvh", inset: "0", overflow: "hidden", zIndex: "2147483600" });
+  const dlgStyle = document.createElement("style");
+  dlgStyle.textContent = "#gf-sound-dialog::backdrop{background:transparent}#gf-sound-dialog:not([open]){display:none}";
+  document.head.appendChild(dlgStyle);
   const popHost = document.createElement("div");
   popHost.id = "gf-sound-popup";
-  Object.assign(popHost.style, { position: "fixed", inset: "0", zIndex: "2147483600", display: "none" });
-  document.body.appendChild(popHost);
-  later(() => popHost.remove());
+  Object.assign(popHost.style, { width: "100%", height: "100%" });
+  dlg.appendChild(popHost);
+  document.body.appendChild(dlg);
+  later(() => { try { dlg.open && dlg.close(); } catch {} dlg.remove(); dlgStyle.remove(); });
   const sr = popHost.attachShadow({ mode: "open" });
 
   /* ---------- 설정 값 읽기/쓰기 (경로: "groups.UI" 같은 형태) ---------- */
@@ -1309,7 +1400,16 @@
       card("장르 단어 추가", Object.keys(GENRE_LABEL).map((g) => textarea("genreKeywords." + g, GENRE_LABEL[g], "예: 세계관 고유 명사")).join(""), "테마 '자동'일 때 장르를 짐작하는 데 써요.") +
       card("지금 감지 상태", `<div class="meter" data-meter></div><p class="hint" data-lastline></p>`),
     view:
-      card("떠 있는 버튼", select("launcherPos", "위치", [["br", "오른쪽 아래"], ["bl", "왼쪽 아래"], ["tr", "오른쪽 위"], ["tl", "왼쪽 위"], ["hidden", "숨기기"]], "확장 서랍에 담겨 있으면 서랍 설정이 우선이에요") + range("launcherSize", "크기", 24, 52, 2, "px") + range("launcherOpacity", "불투명도", 0.2, 1, 0.05) + toggle("hotkey", "Alt+S로 설정 열기", "버튼을 숨겨도 단축키로 열 수 있어요")),
+      card("가챠포지 안 아이콘",
+        select("iconTopbar", "상단바 아이콘 위치", [["beforeFs", "전체 화면 아이콘 앞 (기본)"], ["beforeSettings", "게임 설정 아이콘 앞"], ["end", "맨 끝"], ["none", "넣지 않기"]], "오른쪽 위 '월드·게임 설정·전체 화면' 아이콘 줄이에요") +
+        toggle("iconBattle", "전투 조작줄에도 넣기", "Auto·배속·전체 화면 버튼 옆") +
+        select("iconStyle", "아이콘 모양", [["speaker", "스피커"], ["note", "음표"], ["wave", "음파"], ["gear", "톱니"]]),
+        "가챠포지 버튼과 똑같은 모양으로 들어가고, 전체 화면에서도 팝업이 열려요. 다른 확장이 같은 줄에 버튼을 넣어도 서로 밀어내지 않아요.") +
+      card("떠 있는 버튼",
+        select("launcherPos", "위치", [["hidden", "숨기기 (기본)"], ["br", "오른쪽 아래"], ["bl", "왼쪽 아래"], ["tr", "오른쪽 위"], ["tl", "왼쪽 위"]], "가챠포지 밖 화면에서도 열고 싶을 때 켜요. 확장 서랍에 담겨 있으면 서랍이 우선이에요") +
+        range("launcherOffsetX", "가로 간격", 0, 240, 4, "px", "다른 확장의 떠 있는 버튼과 겹치면 늘려요") + range("launcherOffsetY", "세로 간격", 0, 240, 4, "px") +
+        range("launcherSize", "크기", 24, 52, 2, "px") + range("launcherOpacity", "불투명도", 0.2, 1, 0.05)) +
+      card("단축키", select("hotkey", "설정 열기", [["alt+s", "Alt + S"], ["alt+m", "Alt + M"], ["ctrl+shift+s", "Ctrl + Shift + S"], ["off", "쓰지 않기"]], "다른 확장 단축키와 겹치면 바꾸거나 꺼요"), "Esc로 닫혀요."),
     adv:
       card("성능", toggle("lowPower", "저사양 모드", "울림 끄기, 음 밀도 낮추기, 화음 단순화") + range("sleepSec", "조용할 때 오디오 엔진 쉬기", 3, 60, 1, "s", "배경음이 꺼져 있을 때만 적용돼요")) +
       card("설정 백업", `<div class="row-btns"><button class="sb" data-act="export">설정 내보내기</button><button class="sb" data-act="import">설정 가져오기</button><button class="sb danger" data-act="reset">모두 초기화</button></div><p class="hint">내 소리 파일은 설정 파일에 들어가지 않아요(기기에 따로 저장).</p>`) +
@@ -1487,14 +1587,31 @@
   every(() => { if (popOpen && !$('[data-panel="mood"]').hidden) renderMeter(); }, 1000);
 
   let popOpen = false;
-  function openPopup() { unlock(); popOpen = true; popHost.style.display = "block"; syncUi(); renderMeter(); }
-  function closePopup() { popOpen = false; popHost.style.display = "none"; stopPreview(); }
+  function showDlg() {
+    try { if (dlg.open) dlg.close(); dlg.showModal(); }
+    catch { dlg.setAttribute("open", ""); Object.assign(dlg.style, { position: "fixed", display: "block" }); } // 아주 오래된 브라우저용
+  }
+  function openPopup() { unlock(); popOpen = true; showDlg(); syncUi(); renderMeter(); }
+  function closePopup() { popOpen = false; try { dlg.close(); } catch { dlg.removeAttribute("open"); } stopPreview(); }
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); closePopup(); }); // Esc
+  // 팝업을 연 채로 전체 화면을 켜고 끄면 다시 맨 위로 올림
+  const onFs = () => { if (popOpen) setTimeout(showDlg, 60); };
+  document.addEventListener("fullscreenchange", onFs);
+  document.addEventListener("webkitfullscreenchange", onFs);
+  later(() => { document.removeEventListener("fullscreenchange", onFs); document.removeEventListener("webkitfullscreenchange", onFs); });
   launcher.addEventListener("click", (e) => { e.stopPropagation(); popOpen ? closePopup() : openPopup(); });
   $(".ov").addEventListener("pointerdown", (e) => { if (e.target === $(".ov")) closePopup(); });
   $("[data-close]").addEventListener("click", closePopup);
   const onKey = (e) => {
     if (popOpen && e.key === "Escape") return closePopup();
-    if (cfg.hotkey && e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "s" || e.key === "S" || e.code === "KeyS")) { e.preventDefault(); popOpen ? closePopup() : openPopup(); }
+    const hk = cfg.hotkey;
+    if (!hk || hk === "off" || e.repeat) return;
+    const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    if (typing && !popOpen) return; // 글 쓰는 중엔 가로채지 않음
+    const ok = hk === "alt+s" ? e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === "KeyS"
+      : hk === "alt+m" ? e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === "KeyM"
+      : hk === "ctrl+shift+s" ? (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === "KeyS" : false;
+    if (ok) { e.preventDefault(); e.stopPropagation(); popOpen ? closePopup() : openPopup(); }
   };
   document.addEventListener("keydown", onKey);
   later(() => document.removeEventListener("keydown", onKey));
@@ -1533,6 +1650,7 @@
       else syncBgm();
     }
     if (top.startsWith("launcher")) placeLauncher();
+    if (/^icon|^hotkey$|^sfxOn$|^bgmOn$/.test(top)) ensureGameButtons();
     if (top === "theme") { detectGenre(true); setSfxFx(activeTheme()); syncUi(); }
     if (top === "keywords" || top === "genreKeywords") wordCache.clear();
   }
@@ -1637,6 +1755,7 @@
     clearTimeout(saveTimer); clearTimeout(structTimer); clearTimeout(previewTimer);
     for (const id of timers) clearInterval(id);
     stopSynth(); stopFile(0.1);
+    try { root && root.querySelectorAll(".gf-sound-btn").forEach((b) => b.remove()); if (root && gameSheet) root.adoptedStyleSheets = root.adoptedStyleSheets.filter((x) => x !== gameSheet); } catch {}
     detach();
     for (const fn of cleanups.splice(0)) { try { fn(); } catch {} }
     if (ctx) { ctx.close().catch(() => {}); ctx = null; }
