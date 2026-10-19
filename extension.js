@@ -71,6 +71,8 @@
     typingGap: 45,       // 타자음 최소 간격(ms)
     elemHits: true,      // 속성별 타격음 사용
     rewardChain: 6,      // 보상 아이템 연속 재생 최대 개수
+    boom: 0.4,           // 효과음의 저음 '둥' 세기
+    kick: 0.6,           // 배경음 킥·팀파니 세기
     duck: true,          // 큰 효과음 때 배경음 잠깐 줄이기
     duckAmount: 0.5,
     // 배경음
@@ -254,7 +256,8 @@
     for (let i = 0; i < n; i++) fmBell(base + [0, 3, 5, 7, 10, 12][i % 6] + (i > 5 ? 12 : 0), at + i * 0.04 + Math.random() * 0.02, vol, 0.35, 0.7, 2, 1, (Math.random() - 0.5) * 1.4);
   };
   const chord = (notes, at, vol, dur, type = "triangle", rev = 0.4, lp = 3000) => notes.forEach((m, i) => osc({ f: mtof(m), type, at, dur, vol, a: 0.01, rev, lp, detune: i % 2 ? 6 : -6 }));
-  const thump = (at = 0, vol = 0.45, from = 140, to = 45, dur = 0.22) => osc({ f: from, to, type: "sine", at, dur, vol, a: 0.002 });
+  // 저음 '둥': 설정의 '둥 소리 세기'로 한꺼번에 조절. 너무 낮은 초저음은 스피커만 울려서 바닥을 50Hz로 제한
+  const thump = (at = 0, vol = 0.45, from = 140, to = 45, dur = 0.22) => { const b = cfg.boom; if (b <= 0.01) return; osc({ f: from, to: Math.max(50, to), type: "sine", at, dur, vol: vol * b, a: 0.004 }); };
 
   /* ---------- 효과음 ---------- */
   const SYNTH = {
@@ -1082,6 +1085,7 @@
     return p;
   }
   let seqTimer = 0, nextTime = 0, step = 0, preset = null, presetKey = null, padNodes = [];
+  let introLeft = 0; // 곡이 시작·전환된 직후 몇 칸은 드럼 없이 → 처음부터 '둥!' 하고 터지지 않게
 
   function stopPad(at, fade = 0.8) {
     for (const p of padNodes) { try { p.g.gain.cancelScheduledValues(at); p.g.gain.setTargetAtTime(0.0001, at, fade); p.o.stop(at + fade * 5); } catch {} }
@@ -1123,11 +1127,11 @@
     }
     o.connect(f).connect(g); o.start(at); o.stop(at + len + 0.1);
   }
-  function kick(at, v = 0.3) { const o = ctx.createOscillator(); o.frequency.setValueAtTime(130, at); o.frequency.exponentialRampToValueAtTime(40, at + 0.12); const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.2); o.connect(g).connect(bgmBus); o.start(at); o.stop(at + 0.22); }
+  function kick(at, v = 0.3) { v *= cfg.kick; if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(130, at); o.frequency.exponentialRampToValueAtTime(40, at + 0.12); const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.2); o.connect(g).connect(bgmBus); o.start(at); o.stop(at + 0.22); }
   function hat(at, v = 0.03, len = 0.04) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7000; const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + len); s.connect(f).connect(g).connect(bgmBus); s.start(at, Math.random()); s.stop(at + len + 0.02); }
   function snare(at, v = 0.08, freq = 1800, len = 0.15) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + len); s.connect(f).connect(g).connect(bgmBus); s.start(at, Math.random()); s.stop(at + len + 0.02); }
   function bass(m, at, len, v = 0.1) { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = mtof(m); const g = ctx.createGain(); env(g, at, 0.005, v, len); o.connect(g).connect(bgmBus); o.start(at); o.stop(at + len + 0.05); }
-  function timpani(m, at, v = 0.18) { const o = ctx.createOscillator(); o.frequency.setValueAtTime(mtof(m) * 1.5, at); o.frequency.exponentialRampToValueAtTime(mtof(m), at + 0.08); const g = ctx.createGain(); env(g, at, 0.004, v, 0.6); o.connect(g).connect(bgmBus); const r = ctx.createGain(); r.gain.value = 0.4; g.connect(r).connect(reverbIn); o.start(at); o.stop(at + 0.7); }
+  function timpani(m, at, v = 0.18) { v *= cfg.kick; if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(mtof(m) * 1.5, at); o.frequency.exponentialRampToValueAtTime(mtof(m), at + 0.08); const g = ctx.createGain(); env(g, at, 0.004, v, 0.6); o.connect(g).connect(bgmBus); const r = ctx.createGain(); r.gain.value = 0.4; g.connect(r).connect(reverbIn); o.start(at); o.stop(at + 0.7); }
 
   // 리드 멜로디: 비브라토가 들어간 플루트·신스 리드·호른 등
   let leadPrev = null;
@@ -1190,6 +1194,7 @@
     if (preset.theme === "daily" && s % 4 === 0) crackle(at, beat * 2);
     if (preset.theme === "dark" && (s === 0 || s === 8) && /calm|mystery|dark|sad|lobby/.test(preset.mood)) { kick(at, 0.12); kick(at + beat * 0.45, 0.08); } // 심장 박동
     if (preset.theme === "hunter" && (preset.drums === "battle" || preset.drums === "pulse")) hat(at + eighth / 2, 0.012, 0.025); // 16비트 하이햇
+    if (introLeft > 0) { introLeft--; step++; return; } // 첫 마디는 멜로디·화음만 (위에서 이미 연주)
     switch (preset.drums) {
       case "battle": if (s % 2 === 0) bass(ch[0] - 24, at, beat * 0.8, 0.12); if (s % 4 === 0) kick(at); if (s % 8 === 4) snare(at); hat(at, s % 2 ? 0.02 : 0.035); break;
       case "orch": if (s % 4 === 0) timpani(ch[0] - 24, at, 0.2); if (s % 8 === 6) timpani(ch[0] - 17, at, 0.12); if (s % 2 === 0) bass(ch[0] - 24, at, beat * 0.7, 0.07); if (s % 4 === 2) snare(at, 0.03, 3000, 0.08); break;
@@ -1211,7 +1216,7 @@
     const pk = key + "|" + activeTheme();
     if (seqTimer && presetKey === pk) return;
     const changing = !!seqTimer;
-    preset = buildPreset(key); presetKey = pk; step = 0;
+    preset = buildPreset(key); presetKey = pk; step = 0; introLeft = 16;
     if (changing) { stopPad(ctx.currentTime, cfg.fade); nextTime = ctx.currentTime + Math.min(0.35, cfg.fade); return; }
     nextTime = ctx.currentTime + 0.1;
     seqTimer = setInterval(() => {
@@ -1397,10 +1402,10 @@
       card("어울림", toggle("duck", "효과음이 클 때 배경음 낮추기", "★5 공개·승리·레벨 업 같은 순간에 음악이 잠깐 비켜줘요") + range("duckAmount", "얼마나 낮출지", 0.1, 0.9, 0.05) + toggle("bgmOutside", "가챠포지 밖에서도 배경음", "다른 화면에서는 로비 음악이 계속 나와요")) +
       card("빠른 미리 듣기", `<div class="row-btns"><button class="sb" data-play="reveal5">★5 소환</button><button class="sb" data-play="crit">치명타</button><button class="sb" data-play="aether">에테르</button><button class="sb" data-play="affection">호감도</button><button class="sb" data-play="victory">승리</button></div>`),
     sfx:
-      card("효과음 전체", range("reverb", "울림(리버브)", 0, 0.8, 0.02) + range("typingGap", "타자음 간격", 20, 150, 5, "ms", "숫자가 클수록 타자음이 드문드문 나요") + toggle("elemHits", "속성별 타격음", "불·물·바람·대지·빛·어둠 스킬마다 다른 타격음") + range("rewardChain", "보상 아이템 연속 재생", 1, 10, 1, "n", "보상 화면에서 최대 몇 종류까지 차례로 울릴지")) +
+      card("효과음 전체", range("boom", "둥 소리(저음 쿵) 세기", 0, 1.5, 0.05, "pct", "소환 공개·타격·출격 때 깔리는 저음이에요. 0%면 꺼져요") + range("reverb", "울림(리버브)", 0, 0.8, 0.02) + range("typingGap", "타자음 간격", 20, 150, 5, "ms", "숫자가 클수록 타자음이 드문드문 나요") + toggle("elemHits", "속성별 타격음", "불·물·바람·대지·빛·어둠 스킬마다 다른 타격음") + range("rewardChain", "보상 아이템 연속 재생", 1, 10, 1, "n", "보상 화면에서 최대 몇 종류까지 차례로 울릴지")) +
       card("소리별 설정", soundRows, "그룹 오른쪽 스위치로 묶음째 끌 수 있어요. 소리마다 볼륨·음높이·내 파일 교체가 돼요. 파일은 이 기기에만 저장돼요."),
     bgm:
-      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + select("melody", "멜로디 악기", INSTR) + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
+      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "멜로디 악기", INSTR) + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
       card("상황별 음악", sitRows, "상황마다 자동 생성·내 파일·끄기 중에 골라요. ▶는 12초 미리 듣기예요."),
     mood:
       card("감지 방식", range("sensitivity", "감도", 0.5, 2, 0.05, "x", "높이면 작은 단서에도 분위기가 바뀌어요") + range("minHold", "한 분위기 최소 유지 시간", 3, 60, 1, "s", "강한 장면은 이 시간의 절반만 지나도 바뀌어요")) +
@@ -1724,6 +1729,7 @@
     const el = e.target;
     if (el.dataset.s && el.type === "range") { play(el.closest(".snd").dataset.snd, 0, { force: true }); return; }
     if (el.dataset.cfg === "sfxVol" || el.dataset.cfg === "reverb") { play("confirm", 0, { force: true }); return; }
+    if (el.dataset.cfg === "boom") { play("hit", 0, { force: true }); return; } // 바꾼 둥 세기를 바로 들려줌
     if (el.hasAttribute("data-bgm-mode")) {
       const sit = el.closest(".sit").dataset.sit;
       cfg.bgm[sit] = el.value; save();
