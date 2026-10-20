@@ -1655,7 +1655,7 @@
         drums: { battle: "battle", tense: "pulse", def: "none" }, rev: 0.7 },
       oriental: { ens: [{ i: "erhu", p: "counter", sec: [1, 2, 3] }, { i: "dulcimer", p: "roll", sec: [2, 3], v: 0.8 }], tempo: 0.94, pad: "warm", padCut: 1000, arp: { def: "zither", mystery: "bell", summon: "zither" }, comp: {}, lead: "bamboo", leadCenter: 79,
         drums: { battle: "taiko", tense: "taiko", happy: "janggu", comedy: "janggu", lobby: "janggu", def: "none" }, rev: 0.6, drone: true },
-      idol: { ens: [{ i: "piano", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 3200, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
+      idol: { ens: [{ i: "piano", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 2300, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
         drums: { def: "kpop", calm: "rnb", romance: "rnb", sad: "rnb", mystery: "rnb", dark: "pulse" }, rev: 0.4, sidechain: true,
         bpm: { lobby: 118, summon: 120, battle: 128, calm: 88, happy: 124, comedy: 122, romance: 80, sad: 74, tense: 120, mystery: 92, dark: 96, glitch: 110 },
         padBy: { calm: "warm", romance: "warm", sad: "warm", mystery: "warm" }, leadBy: { calm: "whistle", romance: "whistle", sad: "whistle", mystery: "whistle" } },
@@ -1965,9 +1965,10 @@
     function playPad(kind, notes, t, dur, cut, rev) {
       if (kind === "none") return;
       const fade = Math.min(1.2, dur * 0.35);
-      const voices = kind === "supersaw" ? (cfg.lowPower ? [-10, 10] : [-22, -10, 0, 10, 22]) : cfg.lowPower ? [0] : [-7, 7];
+      // 슈퍼쏘: 톱니파를 너무 많이·넓게 겹치면 서로 맞부딪혀 '지지직' 잡음처럼 들려서 3겹·좁게
+      const voices = kind === "supersaw" ? (cfg.lowPower ? [-8, 8] : [-13, 0, 13]) : cfg.lowPower ? [0] : [-7, 7];
       const wave = kind === "supersaw" || kind === "synth" ? "sawtooth" : kind === "strings" ? "sawtooth" : kind === "warm" ? "triangle" : ["sine", "triangle", "square", "sawtooth"].includes(kind) ? kind : "triangle";
-      const per = (kind === "supersaw" ? 0.011 : wave === "sawtooth" ? 0.016 : wave === "square" ? 0.013 : 0.026) / Math.sqrt(voices.length / 2);
+      const per = (kind === "supersaw" ? 0.009 : wave === "sawtooth" ? 0.016 : wave === "square" ? 0.013 : 0.026) / Math.sqrt(voices.length / 2);
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = cut * (kind === "strings" ? 1.1 : 1); lp.Q.value = 0.6;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1, t + fade);
@@ -2156,16 +2157,17 @@
     const KK = () => cfg.kick;
     function kick(at, v = 0.3, f0 = 120) { v *= KK(); if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0, at); o.frequency.exponentialRampToValueAtTime(48, at + 0.12); const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28); o.connect(g).connect(musicIn); o.start(at); o.stop(at + 0.3); }
     function noiseHit(at, v, type, f, len, q = 1, rev = 0) { if (v <= 0.002) return; const s = ctx.createBufferSource(); s.buffer = noiseBuf; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.setValueAtTime(v, at); g.gain.exponentialRampToValueAtTime(0.0001, at + len); s.connect(fl).connect(g).connect(musicIn); revSend(g, rev); s.start(at, Math.random()); s.stop(at + len + 0.02); }
-    const hat = (at, v = 0.02, open = false) => noiseHit(at, v, "highpass", 7500, open ? 0.22 : 0.035);
+    const hat = (at, v = 0.02, open = false) => noiseHit(at, open ? v * 0.6 : v, "highpass", open ? 9000 : 7500, open ? 0.11 : 0.035); // 열린 하이햇은 짧고 작게(길면 '치익' 잡음처럼 깔림)
     const snare = (at, v = 0.06) => { noiseHit(at, v * KK(), "bandpass", 1900, 0.16, 0.8, 0.25); const o = ctx.createOscillator(); o.frequency.setValueAtTime(220, at); o.frequency.exponentialRampToValueAtTime(160, at + 0.08); const g = ctx.createGain(); g.gain.setValueAtTime(v * 0.6 * KK(), at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.1); o.connect(g).connect(musicIn); o.start(at); o.stop(at + 0.12); };
-    const clap = (at, v = 0.06) => { for (let i = 0; i < 3; i++) noiseHit(at + i * 0.011, v * KK() * (i === 2 ? 1 : 0.6), "bandpass", 1300, i === 2 ? 0.18 : 0.02, 1.2, 0.35); };
-    const crash = (at, v = 0.03) => noiseHit(at, v, "highpass", 5000, 1.8, 0.5, 0.3);
+    const clap = (at, v = 0.06) => { for (let i = 0; i < 3; i++) noiseHit(at + i * 0.011, v * KK() * (i === 2 ? 1 : 0.6), "bandpass", 1300, i === 2 ? 0.14 : 0.02, 1.2, 0.15); };
+    const crash = (at, v = 0.03) => noiseHit(at, v * 0.7, "highpass", 6500, 1.1, 0.5, 0.2);
     const lowDrum = (at, v, f0 = 95) => { v *= KK(); if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0 * 1.3, at); o.frequency.exponentialRampToValueAtTime(f0, at + 0.06); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(v, at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.4); o.connect(g).connect(musicIn); revSend(g, 0.25); o.start(at); o.stop(at + 0.45); };
     const rim = (at, v = 0.04) => { noiseHit(at, v, "bandpass", 2600, 0.05, 3); const o = ctx.createOscillator(); o.frequency.value = 620; const g = ctx.createGain(); g.gain.setValueAtTime(v * 0.7, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06); o.connect(g).connect(musicIn); o.start(at); o.stop(at + 0.08); };
     const timpani = (m, at, v = 0.16) => lowDrum(at, v, mtof(m));
     const gongNote = (m, at, v = 0.04) => fmVoice(mtof(m), at, 3, v, 1.414, 2.5, 3, musicIn, 0.6);
     function bgmRiser(at, dur, v = 0.02) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const fl = ctx.createBiquadFilter(); fl.type = "bandpass"; fl.Q.value = 1.5; fl.frequency.setValueAtTime(400, at); fl.frequency.exponentialRampToValueAtTime(8000, at + dur); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(v, at + dur); g.gain.exponentialRampToValueAtTime(0.0001, at + dur + 0.05); s.connect(fl).connect(g).connect(musicIn); s.start(at); s.stop(at + dur + 0.1); }
-    function duckPads(at, beat) { if (!padBus) return; padBus.gain.setValueAtTime(0.35, at); padBus.gain.linearRampToValueAtTime(1, at + beat * 0.7); }
+    // 사이드체인: 킥마다 화음을 살짝 눌렀다 올림. 한 번에 뚝 떨어뜨리면 '틱틱' 잡음이 나서 아주 짧게 미끄러지듯 내림
+    function duckPads(at, beat) { if (!padBus) return; const g = padBus.gain; g.setValueAtTime(1, at); g.linearRampToValueAtTime(0.5, at + 0.012); g.linearRampToValueAtTime(1, at + beat * 0.7); }
 
     /* ---------- 시퀀서 (16분음표 단위) ---------- */
     let seqTimer = 0, nextTime = 0, step = 0, preset = null, presetKey = null, curKey = null;
@@ -2262,8 +2264,9 @@
         if (p.theme === "daily") for (let i = 0; i < 6; i++) if (Math.random() < 0.5) noiseHit(at + Math.random() * barDur, 0.008 + Math.random() * 0.012, "highpass", 2500, 0.006); // 레코드 잡음
       }
       if (p.theme === "idol" && p.drums === "kpop" && !intro) {
-        if (bar % 8 === 0 && s === 0) crash(at, 0.025);
-        if (bar % 8 === 7 && s === 0) bgmRiser(at, barDur, 0.018);
+        if (hi === 0 && s === 0) crash(at, 0.02); // 노래 처음·후렴(B) 들어갈 때만
+        if (hi === 8 && s === 0) crash(at, 0.02);
+        if (hi === 7 && s === 0) bgmRiser(at, barDur, 0.007);
       }
       // 글리치: 가끔 소리가 '툭' 끊기거나 튐
       if (p.glitch && s % 2 === 0 && Math.random() < 0.08) {
