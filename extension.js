@@ -1660,24 +1660,6 @@
         bpm: { lobby: 118, summon: 120, battle: 128, calm: 88, happy: 124, comedy: 122, romance: 80, sad: 74, tense: 120, mystery: 92, dark: 96, glitch: 110 },
         padBy: { calm: "warm", romance: "warm", sad: "warm", mystery: "warm" }, leadBy: { calm: "whistle", romance: "whistle", sad: "whistle", mystery: "whistle" } },
     };
-    // 테마별 화성 색
-    const minorize = (c) => c.map((m, i) => (i === 1 && c[1] - c[0] === 4 ? m - 1 : m));
-    const CHORD_XFORM = {
-      fantasy: (c) => c,
-      otome: (c) => (c.length < 4 ? [...c, c[0] + 9] : c),
-      daily: (c) => [...new Set([...c.slice(0, 3), c[0] + (c[1] - c[0] === 4 ? 11 : 10), c[0] + 14])].sort((a, b) => a - b),
-      hunter: (c) => minorize(c).map((m) => m - 2),
-      dark: (c) => minorize(c).map((m) => m - 3),
-      idol: (c) => [...new Set([...c.slice(0, 3), c[0] + (c[1] - c[0] === 4 ? 11 : 10), c[0] + 14])].map((m) => m + 2).sort((a, b) => a - b),
-      oriental: (c) => {
-        const P5 = [0, 2, 4, 7, 9];
-        const snap = (m) => { const pc = ((m % 12) + 12) % 12; let best = 0, bd = 99; for (const p of P5) { const d = Math.abs(p - pc); if (d < bd) { bd = d; best = p; } } return m - pc + best; };
-        const out = [...new Set(c.map(snap))].sort((a, b) => a - b);
-        if (out.length < 3) out.push(out[0] + 7);
-        return out.slice(0, 4);
-      },
-    };
-
     // 화음 배치: 직전 화음에서 가장 적게 움직이는 자리바꿈을 고름 → 매끄럽게 이어짐
     function voiceChord(chord, prev, lo = 52, hi = 74) {
       const pcs = [...new Set(chord.map((m) => ((m % 12) + 12) % 12))];
@@ -1696,60 +1678,174 @@
       return cands.sort((a, b) => cost(a) - cost(b))[0];
     }
 
-    // 멜로디 리듬 (16분음표 기준 [시작, 길이])
-    const RHYTHMS = [
-      [[[0, 8], [8, 8]], [[0, 12], [12, 4]], [[0, 16]], [[0, 6], [6, 2], [8, 8]], [[0, 8], [8, 4], [12, 4]]],
-      [[[0, 4], [4, 4], [8, 8]], [[0, 6], [6, 2], [8, 4], [12, 4]], [[0, 8], [8, 8]], [[0, 4], [4, 2], [6, 2], [8, 8]], [[2, 2], [4, 4], [8, 4], [12, 4]]],
-      [[[0, 4], [4, 4], [8, 4], [12, 4]], [[0, 2], [2, 2], [4, 4], [8, 2], [10, 2], [12, 4]], [[0, 6], [6, 6], [12, 4]], [[0, 4], [6, 2], [8, 4], [12, 2], [14, 2]]],
-      [[[0, 2], [2, 2], [4, 2], [6, 2], [8, 4], [12, 4]], [[0, 4], [4, 2], [6, 2], [8, 2], [10, 2], [12, 4]], [[0, 3], [3, 3], [6, 2], [8, 4], [12, 4]]],
-    ];
-    const CADENCE = [[[0, 12]], [[0, 4], [4, 12]], [[0, 8], [8, 6]], [[0, 6], [6, 10]]];
+    /* ---------- 테마별 작곡 ----------
+     *  테마마다 조성·음계·박자·화성 진행·멜로디 말투를 따로 정함
+     *   판타지: 믹솔리디안 영웅풍 팡파레, 목가적인 12/8
+     *   오토메: 3/4 왈츠, 왕도 진행(IV△7–V7–iii7–vi7), 내려앉는 꾸밈음(아포자투라)
+     *   헌터: 에올리안 마이너, 반복되는 16분 리프(신스웨이브)
+     *   일상: 재즈 화성(ii–V–I, 7·9화음), 스윙, 엇박에서 시작하는 느긋한 가락
+     *   동양풍: 5음 음계, 굿거리 12/8, 아래에서 밀어 올리는 시김새, 4도 쌓기 화음
+     *   아이돌: 반복되는 훅(같은 음 연타·당김음), 후렴은 높고 길게
+     *   다크: 화성 단음계, 3/4 마카브르 왈츠, 반음 꾸밈음, 라멘트 베이스
+     * ---------------------------------- */
+    const MODES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], harm: [0, 2, 3, 5, 7, 8, 11], mixo: [0, 2, 4, 5, 7, 9, 10], phryg: [0, 1, 3, 5, 7, 8, 10], penta: [0, 2, 4, 7, 9], yu: [0, 3, 5, 7, 10] };
+    const QUAL = { M: [0, 4, 7], m: [0, 3, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10], 7: [0, 4, 7, 10], M9: [0, 4, 7, 11, 14], m9: [0, 3, 7, 10, 14], add9: [0, 4, 7, 14], sus2: [0, 2, 7], sus4: [0, 5, 7], dim: [0, 3, 6], m7b5: [0, 3, 6, 10], 5: [0, 7, 12], q: [0, 5, 10] };
+    const METER = { "4/4": { spb: 16, bs: 4 }, "3/4": { spb: 12, bs: 4 }, "12/8": { spb: 12, bs: 3 } };
+    // "근음(으뜸음에서 반음 수):화음[/베이스]" 를 띄어 씀
+    function parseProg(str, key) {
+      return str.split(" ").map((tok) => {
+        const [rq, bass] = tok.split("/"); const i = rq.indexOf(":");
+        const r = +rq.slice(0, i), q = QUAL[rq.slice(i + 1)] || QUAL.M;
+        let root = key + r; while (root >= 60) root -= 12; while (root < 48) root += 12;
+        const notes = q.map((x) => root + x);
+        notes.bass = bass != null ? (((key + +bass) % 12) + 12) % 12 : ((root % 12) + 12) % 12;
+        return notes;
+      });
+    }
+    const SONGBOOK = {
+      fantasy: {
+        bright: { key: 50, mode: "mixo", meter: "4/4", bpm: 96, prog: "0:M 10:M 5:M 0:M", progB: "9:m 5:M 0:M 7:M", mel: "fanfare" },
+        soft:   { key: 50, mode: "major", meter: "12/8", bpm: 56, prog: "0:M 5:M 0:M 7:sus4", progB: "9:m 5:M 2:m 7:M", mel: "pastoral" },
+        sad:    { key: 50, mode: "minor", meter: "4/4", bpm: 62, prog: "0:m 8:M 3:M 10:M", progB: "5:m 0:m 8:M 7:M", mel: "ballad" },
+        tense:  { key: 50, mode: "harm", meter: "4/4", bpm: 100, prog: "0:m 8:M 7:M 0:m", progB: "5:m 1:M 7:7 7:7", mel: "ostinato" },
+        battle: { key: 50, mode: "minor", meter: "4/4", bpm: 138, prog: "0:m 8:M 10:M 0:m", progB: "3:M 10:M 8:M 7:M", mel: "fanfare" },
+      },
+      otome: {
+        bright: { key: 53, mode: "major", meter: "3/4", bpm: 138, prog: "5:M7 7:7 4:m7 9:m7", progB: "2:m7 7:7 0:M7 9:m7", mel: "waltz" },
+        soft:   { key: 53, mode: "major", meter: "3/4", bpm: 100, prog: "0:M7 4:m7 5:M7 7:sus4", progB: "9:m7 2:m7 5:M7 7:7", mel: "waltz" },
+        sad:    { key: 53, mode: "major", meter: "4/4", bpm: 64, prog: "9:m 5:M 0:M 7:M", progB: "2:m7 4:m7 5:M7 7:sus4", mel: "ballad" },
+        tense:  { key: 57, mode: "harm", meter: "4/4", bpm: 100, prog: "0:m 5:m 7:7 0:m", progB: "8:M 5:m 2:m7b5 7:7", mel: "strings" },
+        battle: { key: 57, mode: "minor", meter: "4/4", bpm: 136, prog: "0:m 8:M 10:M 0:m", progB: "5:m 8:M 7:M 7:7", mel: "strings" },
+      },
+      hunter: {
+        bright: { key: 52, mode: "minor", meter: "4/4", bpm: 112, prog: "0:m 8:M 3:M 10:M", progB: "5:m 8:M 10:M 10:sus4", mel: "riff" },
+        soft:   { key: 52, mode: "dorian", meter: "4/4", bpm: 84, prog: "0:m9 5:M 0:m9 10:M", progB: "3:M7 5:M 8:M7 10:M", mel: "pad" },
+        sad:    { key: 52, mode: "minor", meter: "4/4", bpm: 76, prog: "0:m 10:M 8:M 10:M", progB: "3:M 10:M 5:m 7:m", mel: "pad" },
+        tense:  { key: 52, mode: "phryg", meter: "4/4", bpm: 118, prog: "0:5 1:M 0:5 1:M", progB: "8:M 7:m 1:M 0:5", mel: "riff" },
+        battle: { key: 52, mode: "minor", meter: "4/4", bpm: 144, prog: "0:5 0:5 8:M 10:M", progB: "3:M 10:M 8:M 7:m", mel: "riff" },
+      },
+      daily: {
+        bright: { key: 51, mode: "major", meter: "4/4", bpm: 92, prog: "2:m7 7:7 0:M9 9:m7", progB: "5:M7 4:m7 9:m7 2:7", mel: "jazzy" },
+        comedy: { key: 48, mode: "major", meter: "4/4", bpm: 124, prog: "0:M 9:m 2:m 7:7", progB: "5:M 7:M 4:m 9:m", mel: "bouncy" },
+        soft:   { key: 51, mode: "major", meter: "4/4", bpm: 74, prog: "0:M7 5:M7 0:M7 5:M7", progB: "4:m7 9:m7 2:m7 7:sus4", mel: "lazy" },
+        sad:    { key: 51, mode: "major", meter: "4/4", bpm: 66, prog: "9:m7 2:m7 7:7 0:M7", progB: "5:M7 4:m7 9:m7 7:sus4", mel: "lazy" },
+        tense:  { key: 50, mode: "dorian", meter: "4/4", bpm: 100, prog: "0:m7 5:7 0:m7 5:7", progB: "3:M7 5:7 10:M 7:m7", mel: "jazzy" },
+        battle: { key: 52, mode: "minor", meter: "4/4", bpm: 140, prog: "0:5 8:5 10:5 0:5", progB: "5:5 3:5 10:5 7:5", mel: "riff" },
+      },
+      oriental: {
+        bright: { key: 55, mode: "penta", meter: "12/8", bpm: 62, prog: "0:sus2 9:q 7:sus4 0:sus2", progB: "4:q 2:sus4 9:q 7:sus2", mel: "penta" },
+        soft:   { key: 55, mode: "penta", meter: "4/4", bpm: 58, prog: "0:sus2 0:sus2 9:q 7:sus2", progB: "2:sus4 4:q 9:q 0:sus2", mel: "pentaSlow" },
+        sad:    { key: 57, mode: "yu", meter: "4/4", bpm: 56, prog: "0:m 10:sus2 5:sus2 0:m", progB: "3:M 10:sus2 7:q 0:m", mel: "pentaSlow" },
+        tense:  { key: 57, mode: "yu", meter: "4/4", bpm: 96, prog: "0:5 0:5 10:5 0:5", progB: "5:5 3:M 7:q 0:5", mel: "ostinato" },
+        battle: { key: 57, mode: "yu", meter: "4/4", bpm: 132, prog: "0:5 10:5 5:5 0:5", progB: "3:M 10:5 7:q 0:5", mel: "fanfare" },
+      },
+      idol: {
+        bright: { key: 56, mode: "major", meter: "4/4", bpm: 120, prog: "9:m7 5:M9 0:add9 7:sus4", progB: "5:M7 7:7 4:m7 9:m7", mel: "hook" },
+        soft:   { key: 53, mode: "major", meter: "4/4", bpm: 80, prog: "0:M9 4:m7 9:m9 5:M7", progB: "2:m9 7:7 0:M9 9:m7", mel: "rnb" },
+        sad:    { key: 56, mode: "major", meter: "4/4", bpm: 72, prog: "9:m 5:M 0:M 7:M", progB: "2:m7 4:m7 5:M7 7:sus4", mel: "ballad" },
+        tense:  { key: 53, mode: "minor", meter: "4/4", bpm: 120, prog: "0:m 8:M 10:M 0:m", progB: "8:M7 10:M 3:M 7:m", mel: "riff" },
+        battle: { key: 53, mode: "minor", meter: "4/4", bpm: 128, prog: "0:m 8:M 3:M 10:M", progB: "5:m 8:M 10:M 10:sus4", mel: "hook" },
+      },
+      dark: {
+        bright: { key: 50, mode: "harm", meter: "3/4", bpm: 112, prog: "0:m 5:m 7:7 0:m", progB: "8:M 4:dim 7:7 0:m", mel: "macabre" },
+        soft:   { key: 50, mode: "minor", meter: "4/4", bpm: 60, prog: "0:m 8:M 5:m 7:M", progB: "3:M 10:M 5:m 7:7", mel: "chant" },
+        sad:    { key: 50, mode: "harm", meter: "4/4", bpm: 58, prog: "0:m 0:m/10 8:M 7:M", progB: "5:m 5:m/3 7:7 0:m", mel: "lament" },
+        tense:  { key: 50, mode: "phryg", meter: "4/4", bpm: 92, prog: "0:m 1:M 0:m 1:M", progB: "5:m 1:M 7:7 0:m", mel: "ostinato" },
+        battle: { key: 50, mode: "harm", meter: "4/4", bpm: 136, prog: "0:m 8:M 5:m 7:7", progB: "1:M 8:M 7:7 7:7", mel: "fanfare" },
+      },
+    };
+    // 분위기 → 곡 종류 (+빠르기 배율)
+    const MOOD_SONG = { lobby: ["bright", 1], summon: ["bright", 1.04], happy: ["bright", 1.1], comedy: ["bright", 1.14], glitch: ["bright", 0.95], calm: ["soft", 1], romance: ["soft", 0.95], sad: ["sad", 1], tense: ["tense", 1], mystery: ["tense", 0.72], dark: ["tense", 0.8], battle: ["battle", 1] };
 
-    // 8마디 노래(A + A′)의 멜로디 짓기 — 모티프 방식
-    //  1마디: 짧은 가락(모티프)  2마디: 같은 가락을 다음 화음 위로 옮김(반복 = 기억에 남음)
-    //  3마디: 가락을 뒤집거나 리듬을 바꿔 변화  4마디: 길게 끝맺으며 숨 쉼
-    //  A′는 1·2마디를 그대로 다시 부르고, 3마디를 살짝 바꾸고, 4마디에서 확실히 끝냄
-    function composeMelody(r, chords, scale, energy, center) {
-      const lo = center - 8, hi = center + 9;
-      const pcsOf = (c) => c.map((m) => ((m % 12) + 12) % 12);
+    // 멜로디 말투: 리듬 칸(시작, 길이), 도약·반복 성향, 꾸밈음 종류
+    const MEL = {
+      fanfare:   { A: [[[0, 6], [6, 2], [8, 8]], [[0, 4], [4, 2], [6, 2], [8, 8]], [[0, 3], [3, 1], [4, 4], [8, 4], [12, 4]]], B: [[[0, 8], [8, 4], [12, 4]], [[0, 12], [12, 4]]], leap: 0.5, rep: 0.1, up: true },
+      ballad:    { A: [[[0, 8], [8, 4], [12, 4]], [[0, 4], [4, 4], [8, 8]], [[0, 12], [12, 2], [14, 2]]], B: [[[0, 6], [6, 2], [8, 8]], [[0, 16]]], leap: 0.15, rep: 0.05, app: "step" },
+      ostinato:  { A: [[[0, 2], [2, 2], [4, 2], [6, 2], [8, 2], [10, 2], [12, 2], [14, 2]]], B: [[[0, 4], [4, 4], [8, 4], [12, 4]]], leap: 0, rep: 0.35, riff: [0, 1, 0, -1, 0, 1, 2, 1], span: 7 },
+      strings:   { A: [[[0, 4], [4, 4], [8, 4], [12, 4]], [[0, 2], [2, 2], [4, 4], [8, 2], [10, 2], [12, 4]]], B: [[[0, 8], [8, 8]], [[0, 6], [6, 2], [8, 8]]], leap: 0.2, rep: 0.05 },
+      riff:      { A: [[[0, 3], [3, 3], [6, 2], [8, 2], [10, 2], [12, 2], [14, 2]], [[0, 2], [3, 1], [4, 2], [6, 2], [8, 3], [11, 3], [14, 2]]], B: [[[0, 8], [8, 8]], [[0, 4], [4, 4], [8, 8]]], leap: 0, rep: 0.3, riff: "auto", span: 9 },
+      pad:       { A: [[[0, 16]], [[0, 8], [8, 8]], [[0, 12], [12, 4]]], B: [[[0, 8], [8, 8]], [[0, 16]]], leap: 0.3, rep: 0 },
+      jazzy:     { A: [[[2, 2], [4, 4], [10, 2], [12, 4]], [[0, 3], [3, 3], [6, 6]], [[4, 2], [6, 2], [8, 6]], [[2, 6], [10, 4]]], B: [[[0, 4], [4, 2], [6, 2], [8, 8]], [[2, 2], [4, 2], [6, 2], [8, 8]]], leap: 0.3, rep: 0.05, ext: true },
+      bouncy:    { A: [[[0, 2], [4, 2], [6, 2], [8, 2], [12, 4]], [[0, 2], [2, 2], [4, 2], [8, 2], [10, 2], [12, 2]]], B: [[[0, 4], [4, 4], [8, 2], [10, 2], [12, 4]]], leap: 0.35, rep: 0.2, stac: true },
+      lazy:      { A: [[[4, 6], [12, 4]], [[2, 4], [8, 8]], [[0, 10]], [[6, 2], [8, 8]]], B: [[[0, 8], [8, 6]], [[2, 6], [10, 6]]], leap: 0.25, rep: 0, ext: true },
+      hook:      { A: [[[0, 2], [2, 2], [4, 3], [7, 1], [8, 2], [10, 2], [12, 4]], [[0, 3], [3, 3], [6, 2], [8, 2], [10, 4], [14, 2]]], B: [[[0, 4], [4, 4], [8, 8]], [[0, 6], [6, 2], [8, 8]]], leap: 0.15, rep: 0.45, hook: true },
+      rnb:       { A: [[[0, 6], [6, 1], [7, 1], [8, 8]], [[0, 2], [2, 1], [3, 1], [4, 4], [8, 8]]], B: [[[0, 8], [8, 4], [12, 2], [14, 2]]], leap: 0.2, rep: 0.05, ext: true, app: "step" },
+      chant:     { A: [[[0, 8], [8, 8]], [[0, 16]], [[0, 4], [4, 4], [8, 8]]], B: [[[0, 8], [8, 8]]], leap: 0, rep: 0.2, span: 7 },
+      lament:    { A: [[[0, 8], [8, 8]], [[0, 4], [4, 4], [8, 8]]], B: [[[0, 6], [6, 2], [8, 8]]], leap: 0.05, rep: 0, app: "half", down: true },
+      waltz:     { A: [[[0, 8], [8, 4]], [[0, 4], [4, 4], [8, 4]], [[0, 6], [6, 2], [8, 4]]], B: [[[0, 12]], [[0, 8], [8, 4]]], leap: 0.3, rep: 0.05, app: "step" },
+      macabre:   { A: [[[0, 4], [4, 4], [8, 4]], [[0, 8], [8, 2], [10, 2]]], B: [[[0, 12]], [[0, 6], [6, 6]]], leap: 0.25, rep: 0.1, app: "half" },
+      pastoral:  { A: [[[0, 4], [4, 2], [6, 6]], [[0, 3], [3, 3], [6, 3], [9, 3]], [[0, 6], [6, 4], [10, 2]]], B: [[[0, 6], [6, 6]], [[0, 9], [9, 3]]], leap: 0.3, rep: 0.05 },
+      penta:     { A: [[[0, 6], [6, 3], [9, 3]], [[0, 3], [3, 3], [6, 6]], [[0, 9], [9, 3]], [[0, 4], [4, 2], [6, 6]]], B: [[[0, 6], [6, 6]], [[0, 12]]], leap: 0.25, rep: 0.05, grace: true },
+      pentaSlow: { A: [[[0, 12], [12, 4]], [[0, 6], [6, 2], [8, 8]], [[0, 16]]], B: [[[0, 8], [8, 8]]], leap: 0.3, rep: 0, grace: true },
+    };
+    const CAD_OPEN = { 16: [[[0, 12]], [[0, 4], [4, 12]], [[0, 8], [8, 6]]], 12: [[[0, 12]], [[0, 4], [4, 8]], [[0, 8], [8, 4]]] };
+    const CAD_CLOSE = { 16: [[0, 4], [4, 12]], 12: [[0, 4], [4, 8]] };
+
+    function composeSong(r, S, bars, scale, keyPc, center, spb, bs) {
+      const span = S.span || 9, lo = center - 8, hi = center - 8 + span + 8;
+      const pc = (m) => ((m % 12) + 12) % 12;
       const clamp = (m) => { while (m < lo) m += 12; while (m > hi) m -= 12; return m; };
-      const nearTone = (pcs, from) => { let best = from, bd = 99; for (let m = lo; m <= hi; m++) if (pcs.includes(((m % 12) + 12) % 12)) { const d = Math.abs(m - from); if (d < bd) { bd = d; best = m; } } return best; };
-      const scaleStep = (from, steps) => { let m = from; const dir = Math.sign(steps); for (let k = 0; k < Math.abs(steps); k++) { m += dir; let g = 0; while (!scale.includes(((m % 12) + 12) % 12) && g++ < 3) m += dir; } return m; };
-      const rhy = RHYTHMS[Math.max(0, Math.min(3, energy))];
-      const motifR = rpick(r, rhy.filter((x) => x.length >= 2) .length ? rhy.filter((x) => x.length >= 2) : rhy);
-      // 가락 모양: 한 방향으로 흐르다 꺾이는 모양이 노래처럼 들림
-      const shape = rpick(r, [[0, 1, 1, -1, -1, 1], [0, -1, -1, 1, 2, -1], [0, 2, -1, -1, 1, 1], [0, 1, 2, -2, -1, 1], [0, -2, 1, 1, -1, -1]]);
-      const contour = motifR.map((_, i) => (i === 0 ? 0 : shape[i % shape.length]));
-      const render = (rh, cont, chord, from) => {
-        const pcs = pcsOf(chord); let m = nearTone(pcs, from);
-        return rh.map(([st, len], i) => {
-          if (i > 0) { m = scaleStep(m, cont[i] || 0); if (st % 8 === 0 || len >= 8) m = nearTone(pcs, m); } // 센박·긴 음은 화음 음으로
-          m = clamp(m); return { st, len, m };
+      const nearTone = (pcs, from) => { let best = from, bd = 99; for (let m = lo; m <= hi; m++) if (pcs.includes(pc(m))) { const d = Math.abs(m - from); if (d < bd) { bd = d; best = m; } } return best; };
+      const scaleStep = (from, k) => { let m = from; const dir = Math.sign(k); for (let i = 0; i < Math.abs(k); i++) { m += dir; let g = 0; while (!scale.includes(pc(m)) && g++ < 4) m += dir; } return m; };
+      const strongTones = (ch) => (S.ext && ch.length >= 4 ? [ch[1], ch[3], ch[4] ?? ch[2]] : ch).map(pc);
+      const fitCells = (pool) => pool.map((c) => c.filter(([st]) => st < spb).map(([st, len]) => [st, Math.min(len, spb - st)])).filter((c) => c.length);
+      const poolA = fitCells(S.A), poolB = fitCells(S.B);
+      const contourFor = (cell) => cell.map((_, i) => {
+        if (!i) return 0;
+        if (r() < S.rep) return 0;
+        const sgn = S.down ? (r() < 0.75 ? -1 : 1) : S.up && i === 1 ? 1 : r() < 0.5 ? 1 : -1;
+        return r() < S.leap ? sgn * (2 + Math.floor(r() * 3)) : sgn;
+      });
+      const strong = (st) => st === 0 || st % (bs * 2) === 0;
+      function render(cell, cont, ch, from) {
+        let m = nearTone(strongTones(ch), from);
+        return cell.map(([st, len], i) => {
+          if (i > 0) { m = scaleStep(m, cont[i] || 0); if (strong(st) || len >= bs * 2) m = nearTone(strongTones(ch), m); }
+          m = clamp(m);
+          const n = { st, len, m };
+          if (S.app && strong(st) && len >= bs * 2 && r() < 0.45) n.app = S.app === "half" ? 1 : scaleStep(m, 1) - m;
+          if (S.grace && len >= bs && r() < 0.55) n.grace = m - scaleStep(m, -1);
+          if (S.stac) n.stac = true;
+          return n;
         });
-      };
-      const b0 = render(motifR, contour, chords[0], center);
-      const b1 = render(motifR, contour, chords[1 % chords.length], b0[0].m + (r() < 0.5 ? 2 : -2)); // 반복(옮겨 부르기)
-      const altR = rpick(r, rhy);
-      const b2 = r() < 0.55 ? render(motifR, contour.map((x) => -x), chords[2 % chords.length], b1[b1.length - 1].m) // 뒤집기
-                            : render(altR, altR.map((_, i) => (i ? rpick(r, [-1, 1, 1, -1, 2]) : 0)), chords[2 % chords.length], b1[b1.length - 1].m);
-      const c3 = pcsOf(chords[3 % chords.length]);
-      const cadA = rpick(r, CADENCE);
-      const b3 = cadA.map(([st, len], i) => ({ st, len, m: i === cadA.length - 1 ? nearTone([c3[1] ?? c3[0], c3[2] ?? c3[0]], b2[b2.length - 1].m) : nearTone(c3, b2[b2.length - 1].m) })); // 열린 끝(질문)
-      if (b3.length > 1 && b3[0].m === b3[b3.length - 1].m) b3[0].m = clamp(scaleStep(b3[0].m, 1)); // 끝맺음 앞음은 한 칸 위에서 내려오게
-      const b2b = b2.map((n, i) => (i === b2.length - 1 ? { ...n, m: clamp(scaleStep(n.m, -1)) } : { ...n }));
-      const b3b = [{ st: 0, len: 4, m: nearTone(c3, b2b[b2b.length - 1].m) }, { st: 4, len: 12, m: nearTone([c3[0]], center) }]; // 닫힌 끝(대답)
-      // B(브리지): 새 리듬·더 높은 음역으로 분위기를 한 번 바꿈. 첫 두 마디는 서로 주고받고, 끝은 A로 돌아가려고 위에서 매달림
-      const bR = rpick(r, rhy.filter((x) => x !== motifR)) || motifR;
-      const bShape = rpick(r, [[0, -1, -1, 1], [0, 1, -1, -1], [0, 2, -1, -1], [0, -1, 1, 1]]);
-      const bCont = bR.map((_, i) => (i === 0 ? 0 : bShape[i % bShape.length]));
-      const B0 = render(bR, bCont, chords[0], center + 5);
-      const B1 = render(bR, bCont.map((x) => -x), chords[1 % chords.length], B0[B0.length - 1].m);
-      const B2 = render(bR, bCont, chords[2 % chords.length], B1[B1.length - 1].m + 2);
-      const B3 = [{ st: 0, len: 6, m: nearTone(c3, B2[B2.length - 1].m) }, { st: 8, len: 8, m: clamp(nearTone([c3[1] ?? c3[0]], center + 4)) }];
-      // A′: 3마디를 다른 방법으로 바꿔 부름(같은 노래인데 지루하지 않게)
-      const b2v = b2 === b2b ? b2 : b2.map((n, i) => (i % 2 ? { ...n, m: clamp(scaleStep(n.m, 1)) } : { ...n }));
-      const cp = (b) => b.map((n) => ({ ...n }));
-      return [b0, b1, b2, b3, cp(b0), cp(b1), b2v, cp(b3), B0, B1, B2, B3, cp(b0), cp(b1), b2b, b3b]; // A A′ B A″ (16마디)
+      }
+      // 리프형(헌터·아이돌 긴장·오스티나토): 한 마디 리프를 화음 근음 따라 옮겨 반복
+      function riffBar(cell, shape, ch, ref) {
+        const root = nearTone([ch.bass ?? pc(ch[0])], ref);
+        let m = root; return cell.map(([st, len], i) => { if (i) m = scaleStep(root, shape[i % shape.length]); return { st, len, m: clamp(m), stac: len <= 2 }; });
+      }
+      const A = bars.slice(0, 4), Bc = bars.slice(8, 12);
+      let a0, a1, a2, a3, a2v, b, a2b, a3c;
+      if (S.riff) {
+        const cell = rpick(r, poolA), shape = Array.isArray(S.riff) ? S.riff : cell.map((_, i) => (i ? rpick(r, [0, 0, 2, -1, 3, 4, 1]) : 0));
+        const ref = center - 2;
+        [a0, a1, a2, a3] = A.map((ch) => riffBar(cell, shape, ch, ref));
+        a2v = riffBar(cell, shape.map((x, i) => (i === shape.length - 1 ? x + 2 : x)), A[2], ref);
+        const bc = rpick(r, poolB);
+        b = Bc.map((ch, i) => render(bc, contourFor(bc), ch, center + 3 + (i % 2) * 2));
+        a2b = a2; a3c = riffBar(cell, shape.map(() => 0), A[3], ref);
+        return [a0, a1, a2, a3, a0, a1, a2v, a3, ...b, a0, a1, a2b, a3c];
+      }
+      const motif = rpick(r, poolA), cont = contourFor(motif);
+      a0 = render(motif, cont, A[0], center);
+      a1 = S.hook ? render(motif, cont, A[1], a0[0].m) // 훅: 같은 리듬·같은 모양을 그대로 반복
+                  : render(motif, cont, A[1], a0[0].m + (r() < 0.5 ? 2 : -2)); // 같은 가락을 옮겨 부르기
+      const alt = rpick(r, poolA);
+      a2 = S.hook ? render(motif, cont.map((x, i) => (i === cont.length - 1 ? x + 2 : x)), A[2], a1[0].m)
+                  : r() < 0.5 ? render(motif, cont.map((x) => -x), A[2], a1[a1.length - 1].m) : render(alt, contourFor(alt), A[2], a1[a1.length - 1].m);
+      const oc = rpick(r, CAD_OPEN[spb]);
+      const t3 = strongTones(A[3]);
+      a3 = oc.map(([st, len], i) => ({ st, len, m: nearTone(i === oc.length - 1 ? [t3[1] ?? t3[0], t3[2] ?? t3[0]] : t3, a2[a2.length - 1].m) })); // 열린 끝(질문)
+      a2v = a2.map((n, i) => (i % 2 ? { ...n, m: clamp(scaleStep(n.m, 1)) } : { ...n }));
+      const bc = rpick(r, poolB), bcont = contourFor(bc);
+      b = Bc.map((ch, i) => render(bc, i % 2 ? bcont.map((x) => -x) : bcont, ch, center + 4 + (i === 2 ? 2 : 0)));
+      b[3] = [{ st: 0, len: Math.round(spb * 0.6), m: nearTone(strongTones(Bc[3]), center + 5) }];
+      a2b = a2.map((n, i) => (i === a2.length - 1 ? { ...n, m: clamp(scaleStep(n.m, -1)) } : { ...n }));
+      const cc = CAD_CLOSE[spb];
+      const t3b = A[3].map(pc), tonicIn = t3b.includes(keyPc) ? [keyPc] : [t3b[0]];
+      a3c = [{ st: cc[0][0], len: cc[0][1], m: nearTone(t3b, a2b[a2b.length - 1].m) }, { st: cc[1][0], len: cc[1][1], m: nearTone(tonicIn, center) }]; // 닫힌 끝(대답)
+      const cp = (x) => x.map((n) => ({ ...n }));
+      return [a0, a1, a2, a3, cp(a0), cp(a1), a2v, cp(a3), ...b, cp(a0), cp(a1), a2b, a3c];
     }
 
     function buildPreset(sit) {
@@ -1757,28 +1853,39 @@
       const b = BASE[mood] || BASE.lobby;
       const th = activeTheme();
       const st = STYLE[th] || STYLE.fantasy;
+      const book = SONGBOOK[th] || SONGBOOK.fantasy;
+      const [cat, mul] = MOOD_SONG[mood] || MOOD_SONG.lobby;
+      const song = book[mood] || book[cat];
+      const M = METER[song.meter];
       const energy = Math.max(0, Math.min(3, b.energy + (cfg.density < 0.6 ? -1 : cfg.density > 1.25 ? 1 : 0)));
-      const bpm = ((st.bpm && st.bpm[mood]) || b.bpm * st.tempo) * cfg.tempo;
-      const chords = b.chords.map(CHORD_XFORM[th] || CHORD_XFORM.fantasy);
-      const scale = [...new Set(chords.flat().map((m) => ((m % 12) + 12) % 12))].sort((a, c) => a - c);
+      const bpm = song.bpm * mul * cfg.tempo;
+      const A = parseProg(song.prog, song.key), B = parseProg(song.progB, song.key);
+      const bars = [...A, ...A, ...B, ...A]; // A A′ B A″ 화성
+      const scale = MODES[song.mode].map((i) => (song.key + i) % 12);
       const r = seeded(sit + "|" + th);
       const p = {
-        mood, theme: th, bpm, energy, chords, scale, glitch: !!b.glitch, minorBell: !!b.minorBell, staccato: !!b.staccato,
+        mood, theme: th, bpm, energy, scale, key: song.key % 12, meter: song.meter, spb: M.spb, bs: M.bs,
+        glitch: !!b.glitch, minorBell: !!b.minorBell, staccato: !!b.staccato || song.mel === "bouncy",
         pad: (st.padBy && st.padBy[mood]) || st.pad, padCut: st.padCut * (mood === "dark" || mood === "mystery" ? 0.7 : 1),
         arp: st.arp[mood] || st.arp.def,
         comp: st.comp[mood] !== undefined ? st.comp[mood] : !!st.comp.def,
         lead: (st.leadBy && st.leadBy[mood]) || st.lead, leadCenter: st.leadCenter,
         drums: (st.drums[mood] !== undefined ? st.drums[mood] : st.drums.def) || "none",
-        rev: st.rev, swing: st.swing || 0, sidechain: !!st.sidechain, drone: !!st.drone,
+        rev: st.rev, swing: song.meter === "4/4" && (st.swing || song.mel === "jazzy" || song.mel === "lazy") ? (st.swing || 0.14) : 0,
+        sidechain: !!st.sidechain, drone: !!st.drone,
         ens: mood === "glitch" ? null : st.ens,
       };
       if (cfg.melody !== "auto") p.arp = cfg.melody;
       if (cfg.padInst !== "auto") p.pad = cfg.padInst;
       if (cfg.drums !== "auto") p.drums = cfg.drums;
       if (cfg.leadInst !== "auto") p.lead = cfg.leadInst;
-      p.melody = composeMelody(r, chords, scale, Math.min(3, energy + (p.lead === "vocal" ? 1 : 0)), p.leadCenter);
-      p.voicings = []; let prev = null;
-      for (const c of chords) { prev = voiceChord(c, prev); p.voicings.push(prev); }
+      // 박자에 맞는 드럼으로 바꿈
+      if (p.meter === "3/4" && p.drums !== "none") p.drums = /battle|orch|taiko/.test(p.drums) ? "waltzOrch" : "waltz";
+      if (p.meter === "3/4" && p.drums === "none" && energy >= 1 && cfg.drums === "auto") p.drums = "waltz";
+      if (p.meter === "12/8" && p.drums !== "none") p.drums = th === "oriental" || p.drums === "janggu" ? "gutgeori" : "shuffle";
+      p.melody = composeSong(r, MEL[song.mel] || MEL.ballad, bars, scale, song.key % 12, p.leadCenter, p.spb, p.bs);
+      p.chords = bars; p.voicings = []; let prev = null;
+      for (const c of bars) { prev = voiceChord(c, prev); p.voicings.push(prev); }
       return p;
     }
 
@@ -1989,30 +2096,30 @@
         switch (L.p) {
           case "roll": { // 하프처럼 아래에서 위로 굴리기
             if (s === 0) { const ns = [voicing[0] - 12, ...voicing, voicing[1] + 12]; ns.forEach((m, i) => playEnsInst(L.i, m, t + i * six * 0.45, barDur * 0.9, 0.05 * v, rev, -0.5 + i / ns.length)); }
-            else if (s === 8 && p.energy >= 1) [voicing[1] + 12, voicing[2 % voicing.length] + 12].forEach((m, i) => playEnsInst(L.i, m, t + i * six * 0.5, barDur * 0.45, 0.035 * v, rev, 0.3));
+            else if (s === p.spb / 2 && p.energy >= 1) [voicing[1] + 12, voicing[2 % voicing.length] + 12].forEach((m, i) => playEnsInst(L.i, m, t + i * six * 0.5, barDur * 0.45, 0.035 * v, rev, 0.3));
             break;
           }
           case "strum": { // 기타 스트로크: 다운(1·3박) 업(사이)
-            const pat = p.energy >= 2 ? [0, 4, 6, 8, 10, 12, 14] : p.energy === 1 ? [0, 6, 8, 12, 14] : [0, 8];
+            const pat = p.meter === "3/4" ? (p.energy >= 1 ? [0, 4, 8] : [0]) : p.meter === "12/8" ? (p.energy >= 1 ? [0, 3, 6, 9] : [0, 6]) : p.energy >= 2 ? [0, 4, 6, 8, 10, 12, 14] : p.energy === 1 ? [0, 6, 8, 12, 14] : [0, 8];
             if (!pat.includes(s)) break;
-            const down = s % 4 === 0, ns = [root + 40 + (root > 7 ? -12 : 0), ...voicing.slice(0, 4)];
+            const down = p.meter === "12/8" ? s % 6 === 0 : s % 4 === 0, ns = [root + 40 + (root > 7 ? -12 : 0), ...voicing.slice(0, 4)];
             const order = down ? ns : ns.slice(1).reverse();
             order.forEach((m, i) => playEnsInst(L.i, m, t + i * 0.011, down ? six * 3.6 : six * 1.8, (down ? 0.04 : 0.024) * v, rev * 0.6, -0.2 + i * 0.1));
             break;
           }
           case "offstab": { // 엇박에 짧게 치는 화음
             if (p.comp && L.i === "piano") break;
-            const pat = p.energy >= 2 ? [2, 6, 10, 14] : [4, 12];
+            const pat = p.meter === "3/4" ? [4, 8] : p.meter === "12/8" ? [3, 9] : p.energy >= 2 ? [2, 6, 10, 14] : [4, 12];
             if (pat.includes(s)) voicing.slice(0, 3).forEach((m, i) => playEnsInst(L.i, m + (L.i === "piano" ? 12 : 0), t + i * 0.006, six * 1.3, 0.03 * v, rev * 0.7, (i - 1) * 0.3));
             break;
           }
           case "pizz": { // 현악 피치카토: 박마다 화음 음을 번갈아
-            if (s % 4 === 0 && (p.energy >= 1 || s % 8 === 0)) { const tones = [root + 48, (chord[1] % 12) + 48, (chord[2 % chord.length] % 12) + 48, root + 60]; playEnsInst(L.i, tones[(s / 4 + bar) % 4], t, six * 2, 0.06 * v, rev, (s / 4) % 2 ? 0.35 : -0.35); }
+            if (s % p.bs === 0 && (p.energy >= 1 || s === 0)) { const k = s / p.bs, tones = [root + 48, (chord[1] % 12) + 48, (chord[2 % chord.length] % 12) + 48, root + 60]; playEnsInst(L.i, tones[(k + bar) % 4], t, six * 2, 0.06 * v, rev, k % 2 ? 0.35 : -0.35); }
             break;
           }
           case "counter": { // 대선율: 길게 켜는 두 번째 멜로디(멜로디와 반대로 움직임)
             const lo = L.i === "cello" ? 48 : L.i === "violin" ? 74 : 67, hi = lo + 14;
-            if (s !== 0 && !(p.energy >= 1 && s === 8)) break;
+            if (s !== 0 && !(p.energy >= 1 && s === p.spb / 2)) break;
             const pcs = chord.map((m) => ((m % 12) + 12) % 12), cand = [];
             for (let m = lo; m <= hi; m++) if (pcs.includes(m % 12)) cand.push(m);
             if (!cand.length) break;
@@ -2029,7 +2136,7 @@
           case "glock": { // 멜로디 중 센박 음을 한 옥타브 위에서 반짝 겹쳐 줌
             if (p.lead === "none" || cfg.lowPower || bar < 2) break;
             const mbar = p.melody[(bar - 2) % p.melody.length];
-            for (const n of mbar) if (n.st === s && (n.st % 4 === 0 || n.len >= 6)) playEnsInst(L.i, n.m + 12, t + 0.004, Math.min(n.len * six, 1.2), 0.03 * v, rev + 0.1, 0.25);
+            for (const n of mbar) if (n.st === s && (n.st % p.bs === 0 || n.len >= 6)) playEnsInst(L.i, n.m + 12, t + 0.004, Math.min(n.len * six, 1.2), 0.03 * v, rev + 0.1, 0.25);
             break;
           }
         }
@@ -2066,13 +2173,15 @@
     const SEC_DYN = [0.92, 1, 1.12, 1.04]; // A·A′·B·A″ 세기 (B에서 살짝 북돋움)
     function scheduleStep(at) {
       const p = preset;
-      const beat = 60 / p.bpm, six = beat / 4, barDur = beat * 4;
-      const bar = Math.floor(step / 16), s = step % 16;
-      const ci = bar % p.chords.length, voicing = p.voicings[ci], chord = p.chords[ci];
-      const root = ((chord[0] % 12) + 12) % 12;
+      const spb = p.spb, bs = p.bs, beat = 60 / p.bpm, six = beat / bs, barDur = six * spb;
+      const bar = Math.floor(step / spb), s = step % spb;
+      const hi = (bar - 2 + 32) % 16; // 노래(16마디) 안에서 이번 마디 자리. 첫 두 마디는 끝부분 화음으로 시작(자연스럽게 1마디로 이어짐)
+      const voicing = p.voicings[hi], chord = p.chords[hi];
+      const root = chord.bass ?? ((chord[0] % 12) + 12) % 12;
       const swing = p.swing && s % 4 === 2 ? six * p.swing * 2 : 0;
       const t = at + swing;
       const intro = introLeft > 0;
+      const half = spb / 2;
 
       // 화음·드론: 마디 첫 박에, 다음 마디까지 겹쳐 이어짐
       if (s === 0) {
@@ -2081,56 +2190,75 @@
       }
       // 베이스 (배경 화음과 반주를 모두 '없음'으로 하면 같이 쉼)
       if (p.pad !== "none" || p.arp !== "none") {
-      const bassM = (root > 4 ? 36 : 48) + root;
-      if (p.drums === "kpop" || (p.energy >= 3 && p.drums !== "orch")) { if (s % 2 === 0) playBass(bassM + (p.drums === "kpop" && s % 4 === 2 ? 12 : 0), at, six * 1.6, 0.11, "synth"); }
-      else if (p.energy === 2) { if (s % 4 === 0) playBass(s === 8 ? bassM + 7 : bassM, at, beat * 0.9, 0.1, "warm"); }
-      else if (p.energy === 1) { if (s === 0 || s === 8) playBass(s === 8 && bar % 2 ? bassM + 7 : bassM, at, beat * (s === 8 ? 1.45 : 1.9), 0.09, "warm"); }
-      else if (s === 0) playBass(bassM, at, barDur * 0.98, 0.08, "warm");
-      // 다음 화음으로 넘어가기 직전 한 음으로 이어 줌(베이스가 '걸어가는' 느낌)
-      if (s === 14 && p.energy >= 1 && p.energy <= 2) {
-        const nc = p.chords[(bar + 1) % p.chords.length], nr = ((nc[0] % 12) + 12) % 12;
-        if (nr !== root) { const target = (nr > 4 ? 36 : 48) + nr; const ap = target + (target > bassM ? -1 : 1) * (p.scale.includes((nr + 11) % 12) ? 1 : 2); playBass(ap, at, six * 1.7, 0.07, "warm"); }
-      }
+        const bassM = (root > 4 ? 36 : 48) + root;
+        const fifth = bassM + 7;
+        if (p.meter === "3/4") { // 쿵-짝-짝: 첫 박만 베이스
+          if (s === 0) playBass(bassM, at, beat * (p.energy >= 2 ? 1.6 : 2.6), 0.09, "warm");
+          if (p.energy >= 2 && s === 8) playBass(fifth, at, beat * 0.8, 0.07, "warm");
+        } else if (p.meter === "12/8") {
+          if (s === 0) playBass(bassM, at, beat * 1.7, 0.09, "warm");
+          if (s === 6 && p.energy >= 1) playBass(bar % 2 ? fifth : bassM, at, beat * 1.4, 0.075, "warm");
+        } else if (p.drums === "kpop" || (p.energy >= 3 && p.drums !== "orch")) { if (s % 2 === 0) playBass(bassM + (p.drums === "kpop" && s % 4 === 2 ? 12 : 0), at, six * 1.6, 0.11, "synth"); }
+        else if (p.energy === 2) { if (s % 4 === 0) playBass(s === 8 ? fifth : bassM, at, beat * 0.9, 0.1, "warm"); }
+        else if (p.energy === 1) { if (s === 0 || s === 8) playBass(s === 8 && bar % 2 ? fifth : bassM, at, beat * (s === 8 ? 1.45 : 1.9), 0.09, "warm"); }
+        else if (s === 0) playBass(bassM, at, barDur * 0.98, 0.08, "warm");
+        // 다음 화음으로 넘어가기 직전 한 음으로 이어 줌(베이스가 '걸어가는' 느낌)
+        if (s === spb - 2 && p.energy >= 1 && p.energy <= 2 && p.meter !== "12/8") {
+          const nc = p.chords[(hi + 1) % 16], nr = nc.bass ?? ((nc[0] % 12) + 12) % 12;
+          if (nr !== root) { const target = (nr > 4 ? 36 : 48) + nr; const ap = target + (target > bassM ? -1 : 1) * (p.scale.includes((nr + 11) % 12) ? 1 : 2); playBass(ap, at, six * 1.7, 0.07, "warm"); }
+        }
       }
 
-      // 반주: 화음을 쪼개 고르게(또는 로즈 피아노로 화음 치기)
+      // 반주
+      const sec = bar < 2 ? -1 : Math.floor(hi / 4), inB = sec === 2;
       if (p.arp !== "none") {
         const notes = voicing.map((m) => m + 12);
-        if (p.comp) { // 화음 치기: 1박, 2박 반, 3박 반 (느긋한 리듬)
+        const vol = ({ bell: 0.035, musicbox: 0.04, synthpluck: 0.03, epiano: 0.032, zither: 0.04, pluck: 0.045 }[p.arp] || 0.03) * (p.lead !== "none" && !cfg.lowPower ? 0.7 : 1); // 멜로디가 있으면 반주는 한 걸음 뒤로
+        const bend = () => (p.arp === "zither" && Math.random() < 0.12 ? (Math.random() < 0.5 ? 1 : 2) : 0);
+        if (p.meter === "3/4") { // 왈츠: 쿵(베이스)-짝-짝 / 오르골이면 8분 분산화음
+          if (p.arp === "musicbox" || p.arp === "bell" || p.energy === 0) {
+            if (s % 2 === 0) { const shape = [0, 1, 2, 3, 2, 1]; const m = notes[shape[s / 2] % notes.length]; playInst(p.arp, mtof(m), t, six * 3, vol * (s === 0 ? 1.1 : 0.9), musicIn, p.rev, { bend: bend() }); }
+          } else if (s === 4 || s === 8) notes.slice(1).forEach((m, i) => playInst(p.arp, mtof(m), t + i * 0.008, six * 2.2, vol * 0.75, musicIn, p.rev));
+        } else if (p.meter === "12/8") { // 셋잇단 분산화음(물결처럼)
+          const rate = p.energy >= 1 ? 1 : 3;
+          if (s % rate === 0) { const shape = [0, 1, 2, 3, 2, 1]; const m = notes[shape[(s / rate) % shape.length] % notes.length]; playInst(p.arp, mtof(m), t, six * rate * 2.2, vol * (s % 3 === 0 ? 1.05 : 0.85), musicIn, p.rev, { bend: bend() }); }
+        } else if (p.comp) { // 화음 치기: 1박, 2박 반, 3박 반 (느긋한 리듬)
           if (s === 0 || s === 6 || s === 10) notes.forEach((m, i) => playInst(p.arp, mtof(m), t + i * 0.012, s === 0 ? beat * 1.4 : beat * 0.9, (s === 0 ? 0.03 : 0.022) * (p.arp === "epiano" ? 1 : 0.8), musicIn, p.rev));
         } else {
           const rate = p.energy >= 3 || (p.energy >= 2 && p.arp === "synthpluck") ? 2 : p.energy === 0 && cfg.density < 0.8 ? 8 : 4; // 16분·8분·4분
           if (s % rate === 0) {
-            const sec = Math.floor(((bar - 2 + 64) % 16) / 4), inB = sec === 2;
             const k = s / rate, shape = inB ? (p.energy >= 2 ? [3, 2, 1, 2, 3, 1, 2, 0] : [0, 3, 2, 1, 3, 2, 1, 2]) : p.energy >= 2 ? [0, 1, 2, 3, 2, 1, 2, 3] : [0, 2, 1, 3, 2, 1, 3, 2];
-            const idx = shape[k % shape.length] % notes.length;
-            const m = notes[idx] + (p.minorBell && Math.random() < 0.08 ? 1 : 0);
-            const bend = p.arp === "zither" && Math.random() < 0.12 ? (Math.random() < 0.5 ? 1 : 2) : 0;
-            const vol = ({ bell: 0.035, musicbox: 0.04, synthpluck: 0.03, epiano: 0.032, zither: 0.04, pluck: 0.045 }[p.arp] || 0.03) * (p.lead !== "none" && !cfg.lowPower ? 0.7 : 1); // 멜로디가 있으면 반주는 한 걸음 뒤로
-            playInst(p.arp, mtof(m), t + (s ? Math.random() * 0.006 : 0), six * rate * (p.staccato ? 0.6 : 1.8), vol * (s === 0 ? 1.15 : s % 4 ? 0.88 + Math.random() * 0.1 : 1) * (inB ? 1.1 : 1), musicIn, p.rev, { bend });
+            const m = notes[shape[k % shape.length] % notes.length] + (p.minorBell && Math.random() < 0.08 ? 1 : 0);
+            playInst(p.arp, mtof(m), t + (s ? Math.random() * 0.006 : 0), six * rate * (p.staccato ? 0.6 : 1.8), vol * (s === 0 ? 1.15 : s % 4 ? 0.88 + Math.random() * 0.1 : 1) * (inB ? 1.1 : 1), musicIn, p.rev, { bend: bend() });
           }
         }
       }
 
       // 합주 악기(테마 고유 악기들). 곡이 진행될수록 하나씩 더해짐
-      playEnsemble(p, bar, s, t, six, barDur, voicing, chord, root, bar < 2 ? -1 : Math.floor(((bar - 2) % 16) / 4));
+      playEnsemble(p, bar, s, t, six, barDur, voicing, chord, root, sec);
 
-      // 리드 멜로디: 16마디 노래(A·A′·B·A″)에서 이번 마디 음들
+      // 리드 멜로디: 16마디 노래(A·A′·B·A″)
       if (p.lead !== "none" && !cfg.lowPower && bar >= 2) { // 반주가 두 마디 깔린 뒤 노래가 들어옴
-        const mb = (bar - 2) % p.melody.length, mbar = p.melody[mb];
+        const mbar = p.melody[hi];
         for (const n of mbar) if (n.st === s) {
-          const lv = (p.theme === "dark" ? 0.032 : p.lead === "vocal" ? 0.05 : 0.04) * SEC_DYN[Math.floor(mb / 4)] * (n.st % 8 === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
-          playLead(p.lead, n.m, lastLead, t + (n.st ? (Math.random() - 0.5) * 0.012 : 0), n.len * six, lv, p.rev); // 사람이 부르듯 아주 살짝 흔들림
+          const lv = (p.theme === "dark" ? 0.032 : p.lead === "vocal" ? 0.05 : 0.04) * SEC_DYN[sec] * (n.st % (bs * 2) === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
+          const tt = t + (n.st ? (Math.random() - 0.5) * 0.012 : 0), dur = n.len * six * (n.stac ? 0.55 : 1);
+          if (n.app) { // 꾸밈음: 위 음에서 시작해 화음 음으로 내려앉음
+            const d1 = Math.min(dur * 0.4, beat * 0.75);
+            playLead(p.lead, n.m + n.app, lastLead, tt, d1, lv, p.rev);
+            playLead(p.lead, n.m, n.m + n.app, tt + d1, dur - d1, lv * 0.92, p.rev);
+          } else if (n.grace) playLead(p.lead, n.m, n.m - n.grace, tt, dur, lv, p.rev); // 시김새: 아래에서 밀어 올림
+          else playLead(p.lead, n.m, lastLead, tt, dur, lv, p.rev); // 사람이 부르듯 아주 살짝 흔들림
           lastLead = n.m;
         }
-        if (s === 15 && (bar % 4) === 3) lastLead = null; // 악절 끝에서 숨 쉬기
+        if (s === spb - 1 && hi % 4 === 3) lastLead = null; // 악절 끝에서 숨 쉬기
       }
 
       // 테마별 양념
       if (s === 0) {
         if (p.theme === "otome" && bar % 2 === 0) fmVoice(mtof(voicing[voicing.length - 1] + 24), at + beat * 2, 1, 0.012, 7.01, 0.6, 1.6, musicIn, 0.8);
-        if (p.theme === "oriental" && /calm|lobby|romance|mystery|sad|happy/.test(p.mood) && bar % 2 === 1) for (let i = 0; i < 3; i++) fmVoice(mtof(p.voicings[ci][i % voicing.length] + 36), at + beat * (2 + i * 0.35), 1.6, 0.01, 3.0, 0.8, 1.8, musicIn, 0.9); // 처마 끝 풍경
-        if (p.theme === "dark" && !intro && /calm|mystery|dark|sad|lobby/.test(p.mood)) { lowDrum(at, 0.09, 60); lowDrum(at + beat * 0.42, 0.06, 58); } // 심장 박동
+        if (p.theme === "oriental" && /calm|lobby|romance|mystery|sad|happy/.test(p.mood) && bar % 2 === 1) for (let i = 0; i < 3; i++) fmVoice(mtof(voicing[i % voicing.length] + 36), at + beat * (2 + i * 0.35), 1.6, 0.01, 3.0, 0.8, 1.8, musicIn, 0.9); // 처마 끝 풍경
+        if (p.theme === "dark" && !intro && /calm|mystery|dark|sad/.test(p.mood)) { lowDrum(at, 0.09, 60); lowDrum(at + beat * 0.42, 0.06, 58); } // 심장 박동
         if (p.theme === "daily") for (let i = 0; i < 6; i++) if (Math.random() < 0.5) noiseHit(at + Math.random() * barDur, 0.008 + Math.random() * 0.012, "highpass", 2500, 0.006); // 레코드 잡음
       }
       if (p.theme === "idol" && p.drums === "kpop" && !intro) {
@@ -2139,8 +2267,8 @@
       }
       // 글리치: 가끔 소리가 '툭' 끊기거나 튐
       if (p.glitch && s % 2 === 0 && Math.random() < 0.08) {
-        const r = Math.random();
-        if (r < 0.5) { musicGate.gain.setValueAtTime(0.0001, t); musicGate.gain.setValueAtTime(1, t + six * (1 + Math.floor(Math.random() * 3))); }
+        const rr = Math.random();
+        if (rr < 0.5) { musicGate.gain.setValueAtTime(0.0001, t); musicGate.gain.setValueAtTime(1, t + six * (1 + Math.floor(Math.random() * 3))); }
         else for (let i = 0; i < 3; i++) playInst("square", mtof(voicing[0] + 24 + Math.floor(Math.random() * 12)), t + i * 0.03, 0.03, 0.012, musicIn, 0);
       }
 
@@ -2177,7 +2305,7 @@
           if (s === 0 || s === 7 || s === 10) kick(at, 0.16); if (s === 4 || s === 12) clap(at, 0.04);
           hat(t, s % 4 === 0 ? 0.012 : 0.006);
           break;
-        case "janggu": // 굿거리풍: 덩 . . 기덕 . 덕 . 쿵 . 덕
+        case "janggu": // 굿거리풍(4/4용)
           if (s === 0) { lowDrum(t, 0.18, 95); rim(t, 0.04); } if (s === 8) lowDrum(t, 0.13, 95);
           if (s === 5) { rim(t, 0.025); rim(t + six * 0.6, 0.035); } if (s === 11 || s === 14) rim(t, 0.03);
           break;
@@ -2185,6 +2313,21 @@
           if (s % 4 === 0) lowDrum(at, 0.26, 70); if (s === 6 || s === 14) lowDrum(at, 0.15, 85);
           if (bar % 2 === 1 && s === 15) { lowDrum(at, 0.12, 90); lowDrum(at + six / 2, 0.16, 90); }
           if (s === 0 && bar % 4 === 0) gongNote(root + 36, at, 0.035);
+          break;
+        case "waltz": // 3/4: 쿵 짝 짝
+          if (s === 0) kick(at, 0.09); if (s === 4 || s === 8) { hat(at, 0.01); rim(at, 0.012); }
+          break;
+        case "waltzOrch":
+          if (s === 0) timpani(root + 36, at, 0.14); if (s === 4 || s === 8) noiseHit(at, 0.012, "bandpass", 3200, 0.06, 2);
+          if (bar % 4 === 3 && s >= 6 && s % 2 === 0) timpani(root + 36, at, 0.05 + (s - 6) * 0.012);
+          break;
+        case "gutgeori": // 굿거리 12/8: 덩 . . 기 덕 . 쿵 . . 기 덕 .
+          if (s === 0) { lowDrum(t, 0.17, 95); rim(t, 0.035); }
+          if (s === 3 || s === 9) rim(t, 0.022); if (s === 4 || s === 10) rim(t, 0.03);
+          if (s === 6) lowDrum(t, 0.12, 95);
+          break;
+        case "shuffle": // 12/8 목가풍
+          if (s === 0 || s === 6) kick(at, 0.08); if (s === 3 || s === 9) hat(at, 0.012); else if (s % 3 === 2) hat(at, 0.005);
           break;
       }
       step++;
@@ -2197,7 +2340,7 @@
       const pk = key + "|" + activeTheme();
       if (seqTimer && presetKey === pk) return;
       const changing = !!seqTimer;
-      preset = buildPreset(key); presetKey = pk; step = 0; introLeft = 16; lastLead = null;
+      preset = buildPreset(key); presetKey = pk; step = 0; introLeft = preset.spb; lastLead = null;
       if (changing) { // 이전 곡은 페이드아웃, 새 곡은 다음 박에서 시작
         const t = ctx.currentTime;
         for (const x of activePads) { try { x.g.gain.cancelScheduledValues(t); x.g.gain.setValueAtTime(x.g.gain.value, t); x.g.gain.linearRampToValueAtTime(0.0001, t + Math.max(0.2, cfg.fade * 0.6)); } catch {} }
@@ -2212,7 +2355,7 @@
       nextTime = ctx.currentTime + 0.1;
       seqTimer = setInterval(() => {
         if (!ctx || ctx.state !== "running" || !preset) return;
-        const six = 60 / preset.bpm / 4;
+        const six = 60 / preset.bpm / preset.bs;
         if (nextTime < ctx.currentTime) nextTime = ctx.currentTime + 0.05; // 탭이 잠시 멈췄다 와도 몰아서 연주하지 않게
         while (nextTime < ctx.currentTime + 0.4) { scheduleStep(nextTime); nextTime += six; }
       }, 100);
@@ -2228,7 +2371,8 @@
     return {
       start: startSynth, stop: stopSynth, running: () => !!seqTimer,
       invalidate: () => { presetKey = null; },
-      refresh: () => { if (seqTimer && curKey) { preset = buildPreset(curKey); presetKey = curKey + "|" + activeTheme(); return true; } return false; },
+      _build: (k) => buildPreset(k), // 점검용
+      refresh: () => { if (seqTimer && curKey) { const np = buildPreset(curKey); if (np.spb !== preset.spb) step = Math.floor(step / preset.spb) * np.spb; preset = np; presetKey = curKey + "|" + activeTheme(); return true; } return false; },
     };
   }
 
@@ -2851,6 +2995,7 @@
   window[KEY] = {
     dispose, open: openPopup,
     _last: () => [...lastPlay.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6).map((e) => e[0]),
+    _song: (k) => { const e = MUSIC(); return e._build ? e._build(k) : null; }, // 점검용
     _tap: () => { ensureCtx(); const d = ctx.createMediaStreamDestination(); masterOut.connect(d); return d.stream; }, // 녹음·점검용
   };
   if (api && typeof api.onCleanup === "function") api.onCleanup(dispose);
