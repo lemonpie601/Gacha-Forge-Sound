@@ -2853,7 +2853,7 @@
   function applyChange(path) {
     const top = path.split(".")[0];
     save(); applyVolumes(); syncOutputs();
-    if (top === "engine") { const sit = previewSit; stopSynth(); MUSIC(); if (sit) { previewSit = null; previewBgm(sit); } else syncBgm(); }
+    if (top === "engine") { const sit = previewSit; stopSynth(); MUSIC(); if (sit) { previewSit = null; previewBgm(sit); if (popOpen === false && !dlg.open) clearTimeout(previewTimer); } else syncBgm(); }
     else if (MUSIC_KEYS.has(top)) restartMusic();
     else if (top === "bgmOn" || top === "bgmVol" || top === "bgmOutside" || top === "storyMoodMode") {
       if (ctx && previewSit) bgmBus.gain.setTargetAtTime(cfg.bgmOn ? Math.max(0.08, cfg.bgmVol * cfg.bgmVol) : 0, ctx.currentTime, 0.05);
@@ -2995,6 +2995,13 @@
   window[KEY] = {
     dispose, open: openPopup,
     _last: () => [...lastPlay.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6).map((e) => e[0]),
+    // 미리듣기 페이지용
+    _preview: (sit) => { unlock(); if (previewSit !== sit) { previewSit = null; previewBgm(sit); } clearTimeout(previewTimer); },
+    _stop: () => stopPreview(),
+    _play: (n) => { unlock(); play(n, 0, { force: true }); },
+    _set: (path, v) => { setCfg(path, v); applyChange(path); },
+    _get: (k) => cfg[k],
+    _sounds: () => SOUND_LIST,
     _song: (k) => { const e = MUSIC(); return e._build ? e._build(k) : null; }, // 점검용
     _tap: () => { ensureCtx(); const d = ctx.createMediaStreamDestination(); masterOut.connect(d); return d.stream; }, // 녹음·점검용
   };
