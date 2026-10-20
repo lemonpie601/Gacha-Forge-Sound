@@ -46,7 +46,7 @@
    * 장르 테마 · 스토리 분위기 · 상황별 배경음
    * ========================================================= */
   const THEMES = [
-    ["auto", "자동"], ["otome", "오토메·로판"], ["hunter", "헌터·액션"], ["daily", "일상·힐링"], ["fantasy", "정통 판타지"], ["dark", "다크·호러"],
+    ["auto", "자동"], ["otome", "오토메·로판"], ["hunter", "헌터·액션"], ["daily", "일상·힐링"], ["fantasy", "정통 판타지"], ["oriental", "동양풍"], ["dark", "다크·호러"],
   ];
   const MOODS = [
     ["calm", "평온"], ["happy", "밝음"], ["comedy", "코믹"], ["romance", "설렘"], ["sad", "슬픔"],
@@ -469,6 +469,15 @@
       popup: () => { osc({ f: 400, to: 800, type: "sine", dur: 0.08, vol: 0.08 }); osc({ f: 800, to: 1200, at: 0.05, dur: 0.06, vol: 0.05 }); },
       notice: () => { osc({ f: mtof(84), type: "sine", dur: 0.3, vol: 0.08, rev: 0.3 }); osc({ f: mtof(88), type: "sine", at: 0.1, dur: 0.4, vol: 0.07, rev: 0.3 }); },
     },
+    oriental: { // 목탁·편경·풍경 느낌
+      click: () => woodblock(0, 0.1, 1500),
+      confirm: () => { chime(84, 0, 0.08); chime(91, 0.07, 0.07); },
+      back: () => { woodblock(0, 0.1, 1100); woodblock(0.07, 0.07, 850); },
+      tab: () => woodblock(0, 0.07, 2000),
+      popup: () => { zither(79, 0, 0.09, 0.6); zither(86, 0.05, 0.07, 0.7); },
+      notice: () => { chime(91, 0, 0.07); chime(96, 0.12, 0.06); chime(88, 0.24, 0.05); },
+      page: () => { nz({ dur: 0.2, vol: 0.05, f: 900, to: 2500, q: 0.7, a: 0.04 }); }, // 한지 넘기는 소리
+    },
     dark: {
       click: () => { osc({ f: 900, to: 600, type: "triangle", dur: 0.05, vol: 0.08, rev: 0.4 }); },
       confirm: () => { fmBell(69, 0, 0.09, 0.8, 0.7, 2.76, 3); },
@@ -490,6 +499,7 @@
     hunter:  { shift: 0, bellRatio: 1.0, bellIndex: 2.6, bellDec: 0.45, wave: { sine: "square", triangle: "sawtooth" }, rev: 0.55 },
     daily:   { shift: 2, bellRatio: 4.0, bellIndex: 0.35, bellDec: 0.4, wave: { sawtooth: "triangle", square: "triangle" }, rev: 0.45 },
     dark:    { shift: -4, bellRatio: 2.76, bellIndex: 1.8, bellDec: 1.9, wave: { square: "sawtooth" }, rev: 1.8 },
+    oriental:{ shift: 0, bellRatio: 3.0, bellIndex: 1.1, bellDec: 1.5, wave: { square: "triangle", sawtooth: "triangle" }, rev: 1.4 },
   };
 
   // 테마별 효과음 체인: sfxBus → (테마 처리) → 압축기
@@ -511,6 +521,7 @@
     chain("daily", (i) => { const lp = filt("lowpass", 7000), ls = filt("lowshelf", 250, 3); i.connect(ls).connect(lp).connect(comp); }); // 따뜻한 테이프
     chain("dark", (i) => { const lp = filt("lowpass", 4200), send = gain(0.35); i.connect(lp).connect(comp); lp.connect(send).connect(reverbIn); }); // 어둡고 깊게
     chain("otome", (i) => { const hs = filt("highshelf", 6000, 4), send = gain(0.15); i.connect(hs).connect(comp); hs.connect(send).connect(reverbIn); }); // 반짝이게
+    chain("oriental", (i) => { const pk = filt("peaking", 1800, 3, 0.8), lp = filt("lowpass", 9000), send = gain(0.3); i.connect(pk).connect(lp).connect(comp); lp.connect(send).connect(reverbIn); }); // 넓은 대청마루 울림
   }
   function setSfxFx(theme) {
     if (!ctx || fxTheme === theme) return;
@@ -538,6 +549,35 @@
     setTimeout(() => { try { sh.disconnect(); g.disconnect(); } catch {} }, 4000);
   }
   const C5PENTA = [72, 74, 76, 79, 81, 84, 86, 88, 91, 93];
+  // 동양풍 악기: 가야금·고쟁(뜯는 현, 농현), 대금·피리(숨소리 섞인 피리), 징, 큰북, 목탁, 편경·풍경
+  function zither(m, at = 0, vol = 0.12, dur = 0.9, pan = 0, bend = 0) {
+    const t0 = ctx.currentTime + at, f = mtof(m) * P;
+    const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(f, t0);
+    if (bend) o.frequency.setTargetAtTime(f * Math.pow(2, bend / 12), t0 + dur * 0.3, 0.09); // 농현: 줄을 눌러 음을 밀어 올림
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 2; lp.frequency.setValueAtTime(6000, t0); lp.frequency.exponentialRampToValueAtTime(450, t0 + 0.4);
+    const g = ctx.createGain(); env(g, t0, 0.002, vol * V, dur);
+    o.connect(lp).connect(g); route(g, pan, 0.45);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  function bamboo(m, at = 0, dur = 0.6, vol = 0.07, pan = 0) {
+    const t0 = ctx.currentTime + at, f = mtof(m) * P;
+    const o = ctx.createOscillator(); o.type = "sine";
+    o.frequency.setValueAtTime(f * 0.94, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.09); // 아래에서 밀어 올리는 시김새
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5.2;
+    lg.gain.setValueAtTime(0, t0); lg.gain.linearRampToValueAtTime(f * 0.012, t0 + Math.min(0.4, dur * 0.6));
+    lfo.connect(lg).connect(o.frequency);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol * V, t0 + 0.06);
+    g.gain.setValueAtTime(vol * V, t0 + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); route(g, pan, 0.55);
+    o.start(t0); lfo.start(t0); o.stop(t0 + dur + 0.05); lfo.stop(t0 + dur + 0.05);
+    nz({ at, dur, vol: vol * 0.35, type: "bandpass", f: f / P * 2, q: 3, a: 0.05, pan }); // 숨소리
+  }
+  const gong = (m = 45, at = 0, vol = 0.14, dur = 3.5) => { fmBell(m, at, vol, dur, 0.9, 1.414, 3.2); fmBell(m + 7, at, vol * 0.35, dur * 0.7, 0.9, 1.59, 2); nz({ at, dur: dur * 0.5, vol: vol * 0.25, type: "bandpass", f: 400, to: 250, q: 1.5, a: 0.15, rev: 0.6 }); };
+  const taiko = (at = 0, vol = 0.5) => { thump(at, vol, 115, 55, 0.4); nz({ at, dur: 0.12, vol: vol * 0.25, type: "lowpass", f: 600, a: 0.002 }); };
+  const woodblock = (at = 0, vol = 0.1, f = 1300) => { osc({ f, to: f * 0.92, at, dur: 0.07, vol, a: 0.001 }); nz({ at, dur: 0.025, vol: vol * 0.5, type: "bandpass", f: f * 1.6, q: 8 }); };
+  const chime = (m, at = 0, vol = 0.07, pan) => fmBell(m, at, vol, 1.8, 0.8, 3.0, 1.0, pan == null ? (Math.random() - 0.5) * 0.8 : pan);
+  const windChimes = (at = 0, n = 6, vol = 0.04) => { for (let i = 0; i < n; i++) chime(C5PENTA[Math.floor(Math.random() * C5PENTA.length)] + 12, at + i * (0.06 + Math.random() * 0.08), vol * (1 - i * 0.08)); };
+  const swordRing = (at = 0, vol = 0.08) => { nz({ at, dur: 0.18, vol: vol * 1.6, type: "highpass", f: 3000, to: 9000, a: 0.002 }); fmBell(100, at + 0.02, vol, 0.9, 0.5, 5.4, 2.5); };
 
   const SIGNATURE = {
     otome: {
@@ -604,6 +644,31 @@
       levelUp: () => { [72, 74, 76, 79, 81, 84, 88].forEach((m, i) => marimba(m, i * 0.05, 0.1)); marimba(91, 0.4, 0.13); },
       aether: () => { [88, 91, 96].forEach((m, i) => marimba(m, i * 0.06, 0.1)); },
       affection: () => { osc({ f: 500, to: 900, dur: 0.08, vol: 0.08 }); [84, 88, 91].forEach((m, i) => marimba(m, 0.1 + i * 0.07, 0.09)); },
+    },
+    oriental: {
+      charge: () => { bamboo(76, 0, 0.35, 0.06); bamboo(79, 0.3, 0.35, 0.065); bamboo(84, 0.6, 0.55, 0.07); nz({ dur: 1.15, vol: 0.04, f: 500, to: 3000, q: 1, a: 0.6, rev: 0.5 }); windChimes(0.7, 4, 0.03); },
+      flash: () => { gong(43, 0, 0.16, 3.8); taiko(0, 0.55); },
+      reveal3: () => { zither(79, 0, 0.11, 0.9); zither(84, 0.09, 0.1, 1); },
+      reveal4: () => { C5PENTA.slice(0, 7).forEach((m, i) => zither(m, i * 0.04, 0.09, 0.8, -0.6 + i * 0.2)); chime(91, 0.32, 0.08); chime(96, 0.42, 0.07); taiko(0, 0.3); },
+      reveal5: () => {
+        gong(40, 0, 0.18, 4.5); taiko(0, 0.6); taiko(0.18, 0.4);
+        C5PENTA.forEach((m, i) => zither(m, 0.2 + i * 0.035, 0.09, 1.1, -0.7 + i * 0.15));
+        C5PENTA.slice(3).forEach((m, i) => zither(m + 12, 0.6 + i * 0.035, 0.07, 1.2, 0.7 - i * 0.2));
+        bamboo(88, 0.75, 0.5, 0.07); bamboo(91, 1.2, 1.2, 0.075);
+        windChimes(0.9, 10, 0.035);
+      },
+      hit: () => { taiko(0, 0.4); woodblock(0, 0.08, 900); nz({ dur: 0.12, vol: 0.12, f: 1500, to: 600, q: 1, a: 0.003 }); },
+      crit: () => { swordRing(0, 0.09); taiko(0.04, 0.6); nz({ at: 0.04, dur: 0.2, vol: 0.18, type: "lowpass", f: 2000, to: 400, a: 0.002 }); },
+      sortie: () => { [0, 0.18, 0.32, 0.43, 0.52, 0.6, 0.67].forEach((t, i) => taiko(t, 0.25 + i * 0.05)); gong(45, 0.75, 0.12, 2.5); bamboo(81, 0.75, 0.9, 0.06); },
+      victory: () => {
+        [[72, 0, 0.3], [76, 0.3, 0.3], [79, 0.6, 0.25], [81, 0.85, 0.25], [84, 1.1, 1.0]].forEach(([m, t, d]) => bamboo(m, t, d + 0.1, 0.07));
+        [60, 67, 72, 76, 79, 84].forEach((m, i) => zither(m, 1.1 + i * 0.04, 0.08, 1.4));
+        gong(48, 1.1, 0.1, 3); windChimes(1.3, 8, 0.03);
+      },
+      defeat: () => { [84, 81, 79, 76, 72, 69].forEach((m, i) => zither(m, i * 0.28, 0.08 - i * 0.008, 1.1, 0, i === 5 ? -1 : 0)); gong(36, 1.5, 0.1, 4); },
+      levelUp: () => { C5PENTA.forEach((m, i) => zither(m, i * 0.04, 0.08, 0.7)); chime(96, 0.42, 0.09); chime(100, 0.5, 0.08); },
+      aether: () => windChimes(0, 7, 0.045),
+      affection: () => { zither(84, 0, 0.09, 1.1, 0, 2); zither(88, 0.25, 0.08, 1.1); chime(96, 0.45, 0.06); },
     },
     dark: {
       charge: () => { choir([45, 46, 52], 0, 1.2, 0.04, 0.9); osc({ f: 55, to: 110, type: "sawtooth", dur: 1.15, vol: 0.08, lp: 400, a: 0.4, curve: "lin" }); for (let i = 0; i < 6; i++) nz({ at: i * 0.18, dur: 0.15, vol: 0.03, type: "bandpass", f: 900 + Math.random() * 1500, q: 12, rev: 0.6 }); },
@@ -1008,6 +1073,7 @@
     hunter: ["헌터", "게이트", "던전", "각성", "길드", "마석", "s급", "a급", "레이드", "몬스터", "상태창", "협회", "균열", "브레이크", "랭커", "스탯"],
     daily: ["카페", "학교", "교실", "수업", "회사", "출근", "퇴근", "점심", "편의점", "산책", "방과후", "동아리", "알바", "아르바이트", "주말", "자취", "라면", "버스", "지하철"],
     fantasy: ["기사", "왕국", "드래곤", "용이", "모험", "엘프", "드워프", "마왕", "성검", "여관", "길드 의뢰", "영지", "성기사"],
+    oriental: ["무협", "강호", "무림", "검객", "협객", "대협", "문파", "사형", "사부", "사매", "내공", "무공", "경공", "단전", "선협", "수련", "신선", "선계", "도사", "요괴", "황제", "황궁", "폐하", "전하", "공주", "세자", "대감", "궁녀", "한복", "조선", "사극", "객잔", "주막", "낭자", "소저", "공자", "마교", "정파", "사파", "비단", "부채", "가마", "기와"],
     dark: ["좀비", "괴담", "살인", "시체", "폐가", "귀신", "악령", "실종", "피투성이", "공포", "의식의 제물"],
   };
   const MOOD_KEYS = Object.keys(LEX);
@@ -1118,6 +1184,7 @@
     daily:   { tempo: 0.92, pad: "triangle", cut: 700, arp: { def: "epiano", comedy: "pluck", tense: "square", battle: "square" }, drums: { def: "lofi", sad: "none", mystery: "none", dark: "none", tense: "pulse", battle: "battle" } },
     fantasy: { tempo: 1, pad: "triangle", cut: 900, arp: { def: "pluck", mystery: "bell", summon: "bell", battle: "square", romance: "bell" }, drums: { battle: "orch", tense: "pulse", happy: "bounce", comedy: "bounce", lobby: "soft" } },
     dark:    { tempo: 0.9, pad: "sawtooth", cut: 600, arp: { def: "bell", battle: "square", tense: "square" }, drums: { battle: "battle", tense: "pulse", def: "none" } },
+    oriental:{ tempo: 0.94, pad: "sine", cut: 750, arp: { def: "zither", mystery: "bell", summon: "bell" }, drums: { battle: "taiko", tense: "taiko", happy: "janggu", comedy: "janggu", lobby: "janggu", def: "none" } },
   };
   // 테마별 화성: 같은 곡이라도 테마마다 코드 색이 달라짐
   const minorize = (c) => c.map((m, i) => (i === 1 && c[1] - c[0] === 4 ? m - 1 : m));
@@ -1127,6 +1194,13 @@
     daily: (c) => [...new Set([...c, c[0] + (c[1] - c[0] === 4 ? 11 : 10), c[0] + 14])].sort((a, b) => a - b).slice(0, 5), // 재즈풍 7·9화음
     hunter: (c) => minorize(c).map((m) => m - 2),
     dark: (c) => minorize(c).map((m) => m - 3),
+    oriental: (c) => { // 5음계(궁·상·각·치·우)로 맞춤 → 반음 없는 동양풍 화음
+      const P5 = [0, 2, 4, 7, 9];
+      const snap = (m) => { const pc = ((m % 12) + 12) % 12; let best = P5[0], bd = 99; for (const p of P5) { const d = Math.min(Math.abs(p - pc), 12 - Math.abs(p - pc)); if (d < bd) { bd = d; best = p; } } let n = m - pc + best; if (best - pc > 6) n -= 12; if (pc - best > 6) n += 12; return n; };
+      const out = [...new Set(c.map(snap))].sort((a, b) => a - b);
+      if (out.length < 3) out.push(snap(out[0] + 7), snap(out[0] + 12));
+      return [...new Set(out)].sort((a, b) => a - b).slice(0, 4);
+    },
   };
   // 테마별 리드 멜로디 악기
   const LEAD = {
@@ -1135,6 +1209,7 @@
     daily: { inst: "epiano", dens: 0.4, oct: 12 },
     fantasy: { inst: "horn", dens: 0.45, oct: 0 },
     dark: { inst: "bell", dens: 0.25, oct: 12 },
+    oriental: { inst: "bamboo", dens: 0.5, oct: 12 },
   };
   function buildPreset(sit) {
     const mood = sit.startsWith("story_") ? sit.slice(6) : sit;
@@ -1193,6 +1268,15 @@
     if (type === "bell") return fmNote(freq, at, len, vol, 3.5, 1.5, 0.7);
     if (type === "musicbox") return fmNote(freq * 2, at, Math.max(len, 0.6), vol * 0.9, 7.01, 0.8, 0.6);
     if (type === "epiano") { fmNote(freq, at, len * 1.4, vol, 1, 0.9, 0.35); return; }
+    if (type === "zither") { // 가야금·고쟁: 뜯고 빠르게 어두워지는 현, 가끔 농현
+      const g2 = ctx.createGain(); g2.connect(bgmBus); const r2 = ctx.createGain(); r2.gain.value = 0.45; g2.connect(r2).connect(reverbIn);
+      const o2 = ctx.createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(freq, at);
+      if (Math.random() < 0.18) o2.frequency.setTargetAtTime(freq * Math.pow(2, (Math.random() < 0.5 ? 1 : 2) / 12), at + 0.18, 0.08);
+      const f2 = ctx.createBiquadFilter(); f2.type = "lowpass"; f2.Q.value = 2; f2.frequency.setValueAtTime(5000, at); f2.frequency.exponentialRampToValueAtTime(400, at + 0.4);
+      const d = Math.max(0.5, Math.min(len * 1.6, 1.2));
+      env(g2, at, 0.002, vol * 1.2, d); o2.connect(f2).connect(g2); o2.start(at); o2.stop(at + d + 0.05);
+      return;
+    }
     const g = ctx.createGain(); g.connect(bgmBus); const r = ctx.createGain(); r.gain.value = 0.45; g.connect(r).connect(reverbIn);
     const o = ctx.createOscillator(); const f = ctx.createBiquadFilter(); f.type = "lowpass";
     if (type === "pluck") { // 하프·피치카토 느낌
@@ -1210,11 +1294,30 @@
   function bass(m, at, len, v = 0.1) { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = mtof(m); const g = ctx.createGain(); env(g, at, 0.005, v, len); o.connect(g).connect(bgmBus); o.start(at); o.stop(at + len + 0.05); }
   function timpani(m, at, v = 0.18) { v *= cfg.kick; if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(mtof(m) * 1.5, at); o.frequency.exponentialRampToValueAtTime(mtof(m), at + 0.08); const g = ctx.createGain(); env(g, at, 0.004, v, 0.6); o.connect(g).connect(bgmBus); const r = ctx.createGain(); r.gain.value = 0.4; g.connect(r).connect(reverbIn); o.start(at); o.stop(at + 0.7); }
 
+  // 동양풍 타악기: 장구(덩·쿵·덕), 큰북, 징
+  function lowDrum(at, v, f0 = 95) { v *= cfg.kick; if (v <= 0.003) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0 * 1.3, at); o.frequency.exponentialRampToValueAtTime(f0, at + 0.06); const g = ctx.createGain(); env(g, at, 0.003, v, 0.35); o.connect(g).connect(bgmBus); const r = ctx.createGain(); r.gain.value = 0.25; g.connect(r).connect(reverbIn); o.start(at); o.stop(at + 0.4); }
+  function rim(at, v = 0.05) { snare(at, v, 2600, 0.05); const o = ctx.createOscillator(); o.frequency.value = 620; const g = ctx.createGain(); env(g, at, 0.001, v * 0.8, 0.05); o.connect(g).connect(bgmBus); o.start(at); o.stop(at + 0.08); }
+  function bgmGong(m, at, v = 0.05) { fmNote(mtof(m), at, 3, v, 1.414, 3, 0.9); }
+
   // 리드 멜로디: 비브라토가 들어간 플루트·신스 리드·호른 등
   let leadPrev = null;
   function leadNote(inst, freq, at, len, vol) {
     if (inst === "epiano") return fmNote(freq, at, len * 1.3, vol * 1.1, 1, 0.9, 0.35);
     if (inst === "bell") return fmNote(freq, at, len * 2, vol * 0.9, 2.76, 1.6, 0.8);
+    if (inst === "bamboo") { // 대금·피리: 아래에서 밀어 올리는 시김새 + 늦게 들어오는 떨림 + 숨소리
+      const o3 = ctx.createOscillator(); o3.type = "sine";
+      o3.frequency.setValueAtTime(freq * 0.94, at); o3.frequency.exponentialRampToValueAtTime(freq, at + 0.1);
+      const l3 = ctx.createOscillator(), lg3 = ctx.createGain(); l3.frequency.value = 5;
+      lg3.gain.setValueAtTime(0, at); lg3.gain.linearRampToValueAtTime(freq * 0.012, at + Math.min(0.5, len * 0.6)); l3.connect(lg3).connect(o3.frequency);
+      const g3 = ctx.createGain(); g3.gain.setValueAtTime(0.0001, at); g3.gain.exponentialRampToValueAtTime(vol * 1.1, at + 0.07);
+      g3.gain.setValueAtTime(vol * 1.1, at + len * 0.7); g3.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      o3.connect(g3).connect(bgmBus); const r3 = ctx.createGain(); r3.gain.value = 0.6; g3.connect(r3).connect(reverbIn);
+      const n3 = ctx.createBufferSource(); n3.buffer = noiseBuf; const nf = ctx.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = freq * 2; nf.Q.value = 3;
+      const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, at); ng.gain.exponentialRampToValueAtTime(vol * 0.4, at + 0.05); ng.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      n3.connect(nf).connect(ng).connect(bgmBus);
+      o3.start(at); l3.start(at); n3.start(at, Math.random()); o3.stop(at + len + 0.05); l3.stop(at + len + 0.05); n3.stop(at + len + 0.05);
+      return;
+    }
     const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     const lfo = ctx.createOscillator(), lg = ctx.createGain();
     lfo.frequency.value = inst === "lead" ? 6 : 5; lg.gain.value = freq * (inst === "horn" ? 0.003 : 0.006);
@@ -1269,6 +1372,7 @@
     // 테마별 양념
     if (preset.theme === "otome" && s === 0) fmNote(mtof(ch[0] + 36), at, 1.4, 0.018, 7.01, 0.5, 0.8); // 마디 첫 박 '띵'
     if (preset.theme === "daily" && s % 4 === 0) crackle(at, beat * 2);
+    if (preset.theme === "oriental" && s === 0 && /calm|lobby|romance|mystery|sad|happy/.test(preset.mood) && Math.random() < 0.5) { for (let i = 0; i < 3; i++) fmNote(mtof(ch[i % ch.length] + 36), at + i * 0.11 + Math.random() * 0.05, 1.6, 0.012, 3.0, 0.8, 0.9); } // 처마 끝 풍경
     if (introLeft <= 0 && preset.theme === "dark" && (s === 0 || s === 8) && /calm|mystery|dark|sad|lobby/.test(preset.mood)) { kick(at, 0.1); kick(at + beat * 0.45, 0.065); } // 심장 박동 (곡 시작 첫 마디엔 없음)
     if (preset.theme === "hunter" && (preset.drums === "battle" || preset.drums === "pulse")) hat(at + eighth / 2, 0.012, 0.025); // 16비트 하이햇
     if (introLeft > 0) { introLeft--; step++; return; } // 첫 마디는 멜로디·화음만 (위에서 이미 연주)
@@ -1278,6 +1382,20 @@
       case "pulse": bass(ch[0] - 24, at, eighth * 0.7, 0.08); if (s % 8 === 0) kick(at, 0.25); if (s % 2) hat(at, 0.015); break;
       case "bounce": if (s % 4 === 0) { kick(at, 0.18); bass(ch[0] - 24, at, beat * 0.5, 0.09); } if (s % 4 === 2) { hat(at, 0.03, 0.06); bass(ch[2 % ch.length] - 24, at, beat * 0.4, 0.07); } break;
       case "soft": if (s % 8 === 0) bass(ch[0] - 24, at, beat * 3, 0.06); if (s % 4 === 2) hat(at, 0.008, 0.03); break;
+      case "janggu": // 굿거리풍 장구: 덩 . . 기덕 . . 덕 . 쿵 . . 덕 . . 덕 .
+        if (s === 0 || s === 8) { lowDrum(t, s === 0 ? 0.2 : 0.16, 95); if (s === 0) rim(t, 0.05); }
+        if (s === 3 || s === 11) { rim(t, 0.035); rim(t + eighth * 0.45, 0.045); }
+        if (s === 6 || s === 14) rim(t, 0.04);
+        if (s % 8 === 0) bass(ch[0] - 24, t, beat * 1.4, 0.05);
+        break;
+      case "taiko": // 큰북 + 징
+        if (s % 4 === 0) lowDrum(at, 0.3, 70);
+        if (s === 6 || s === 14) lowDrum(at, 0.18, 85);
+        if (s === 15) { lowDrum(at, 0.14, 90); lowDrum(at + eighth / 2, 0.18, 90); }
+        if (s % 2) rim(at, 0.02);
+        if (s === 0 && Math.floor(step / 16) % 2 === 0) bgmGong(ch[0] - 12, at, 0.04);
+        if (s % 2 === 0) bass(ch[0] - 24, at, beat * 0.7, 0.08);
+        break;
       case "lofi":
         if (s % 8 === 0 || s === 11) kick(t, 0.16);
         if (s % 8 === 4) snare(t, 0.05, 1400, 0.2);
@@ -1381,7 +1499,7 @@
   launcher.innerHTML = ICON;
   document.body.appendChild(launcher);
   later(() => launcher.remove());
-  const LAUNCH_COLORS = { fantasy: ["rgba(16,21,31,.68)", "#F2C14E"], otome: ["rgba(238,111,160,.9)", "#FFFFFF"], hunter: ["rgba(7,12,20,.8)", "#22D3EE"], daily: ["rgba(255,251,244,.95)", "#E8964A"], dark: ["rgba(13,9,11,.85)", "#C2334D"] };
+  const LAUNCH_COLORS = { fantasy: ["rgba(16,21,31,.68)", "#F2C14E"], otome: ["rgba(238,111,160,.9)", "#FFFFFF"], hunter: ["rgba(7,12,20,.8)", "#22D3EE"], daily: ["rgba(255,251,244,.95)", "#E8964A"], dark: ["rgba(13,9,11,.85)", "#C2334D"], oriental: ["rgba(246,240,227,.95)", "#B83A2B"] };
   function placeLauncher() {
     const size = cfg.launcherSize + "px", gx = 12 + (cfg.launcherOffsetX || 0) + "px", gy = 12 + (cfg.launcherOffsetY || 0) + "px";
     const pos = cfg.launcherPos;
@@ -1453,11 +1571,11 @@
   const textarea = (path, label, ph) => `<div class="ctl"><span class="lbl">${label}</span><textarea data-cfg="${path}" data-type="str" rows="2" placeholder="${esc(ph)}"></textarea></div>`;
   const card = (title, body, hint = "") => `<div class="card2"><h4>${title}</h4>${hint ? `<p class="hint">${hint}</p>` : ""}${body}</div>`;
 
-  const INSTR = [["auto", "테마 따라"], ["none", "없음"], ["musicbox", "오르골"], ["bell", "종·크리스털"], ["pluck", "하프·피치카토"], ["epiano", "전자 피아노"], ["square", "8비트 신스"], ["sine", "부드러운 사인"], ["triangle", "플루트 같은 삼각파"]];
+  const INSTR = [["auto", "테마 따라"], ["none", "없음"], ["musicbox", "오르골"], ["bell", "종·크리스털"], ["pluck", "하프·피치카토"], ["epiano", "전자 피아노"], ["square", "8비트 신스"], ["sine", "부드러운 사인"], ["triangle", "플루트 같은 삼각파"], ["zither", "가야금·고쟁"]];
   const PADS = [["auto", "테마 따라"], ["none", "없음"], ["sine", "부드럽게"], ["triangle", "따뜻하게"], ["sawtooth", "선명하게(현악·신스)"]];
-  const DRUMS = [["auto", "테마·상황 따라"], ["none", "없음"], ["soft", "잔잔한 박자"], ["lofi", "로파이"], ["orch", "오케스트라 팀파니"], ["battle", "배틀 드럼"], ["pulse", "긴박한 펄스"], ["bounce", "통통 튀는"]];
+  const DRUMS = [["auto", "테마·상황 따라"], ["none", "없음"], ["soft", "잔잔한 박자"], ["lofi", "로파이"], ["orch", "오케스트라 팀파니"], ["battle", "배틀 드럼"], ["pulse", "긴박한 펄스"], ["bounce", "통통 튀는"], ["janggu", "장구"], ["taiko", "큰북·징"]];
   const MOOD_HINT = { calm: "예: 차분, 고요, 잔잔", happy: "예: 소풍, 선물, 생일", comedy: "예: 꽈당, 엥?, 어버버", romance: "예: 손깍지, 고백, 두근", sad: "예: 작별, 흐느, 빈자리", tense: "예: 추격, 시험장, 결투", mystery: "예: 수정구, 장막, 계시", dark: "예: 독점, 가두다, 눈빛이 탁", glitch: "예: 화면이 멈, 문자 깨짐" };
-  const GENRE_LABEL = { otome: "오토메·로판", hunter: "헌터·액션", daily: "일상·힐링", fantasy: "정통 판타지", dark: "다크·호러" };
+  const GENRE_LABEL = { otome: "오토메·로판", hunter: "헌터·액션", daily: "일상·힐링", fantasy: "정통 판타지", oriental: "동양풍", dark: "다크·호러" };
 
   const soundRows = SOUND_LIST.map(([g, list]) => `
     <details class="grp"><summary><span>${g}</span><small>${list.length}개</small>
@@ -1490,7 +1608,7 @@
       card("효과음 전체", range("boom", "둥 소리(저음 쿵) 세기", 0, 1.5, 0.05, "pct", "소환 공개·타격·출격 때 깔리는 저음이에요. 0%면 꺼져요") + range("reverb", "울림(리버브)", 0, 0.8, 0.02) + range("typingGap", "타자음 간격", 20, 150, 5, "ms", "숫자가 클수록 타자음이 드문드문 나요") + toggle("elemHits", "속성별 타격음", "불·물·바람·대지·빛·어둠 스킬마다 다른 타격음") + range("rewardChain", "보상 아이템 연속 재생", 1, 10, 1, "n", "보상 화면에서 최대 몇 종류까지 차례로 울릴지")) +
       card("소리별 설정", soundRows, "그룹 오른쪽 스위치로 묶음째 끌 수 있어요. 소리마다 볼륨·음높이·내 파일 교체가 돼요. 파일은 이 기기에만 저장돼요."),
     bgm:
-      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
+      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"], ["bamboo", "대금·피리"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
       card("상황별 음악", sitRows, "상황마다 자동 생성·내 파일·끄기 중에 골라요. ▶는 12초 미리 듣기예요."),
     mood:
       card("감지 방식", range("sensitivity", "감도", 0.5, 2, 0.05, "x", "높이면 작은 단서에도 분위기가 바뀌어요") + range("minHold", "한 분위기 최소 유지 시간", 3, 60, 1, "s", "강한 장면은 이 시간의 절반만 지나도 바뀌어요")) +
@@ -1528,6 +1646,7 @@
       header h3 { margin: 0; font-size: 15px; flex: 1; letter-spacing: -.01em; }
       .now { font-size: 11px; color: var(--gold); background: var(--gold-bg); border-radius: 999px; padding: 3px 9px; white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
       .x { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; padding: 2px 6px; }
+      button:focus:not(:focus-visible) { outline: none; }
       nav { display: flex; gap: 4px; padding: 0 10px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--ctl2); }
       nav::-webkit-scrollbar { display: none; }
       nav button { flex: 0 0 auto; background: none; color: var(--muted); border: 0; border-bottom: 2px solid transparent; padding: 9px 10px; cursor: pointer; font: inherit; }
@@ -1601,6 +1720,12 @@
             --fg: #3F362C; --fg-strong: #241C14; --muted: #9A8B78; --knob: #FFFFFF; --accent: #E8964A; --accent-fg: #FFFFFF; --gold: #B9772F; --gold-bg: rgba(232,150,74,.13); --ok: #5A9E5F;
             --scroll: #DECDB4; --scroll-h: #E8964A; --glow: 0 24px 60px rgba(90,60,30,.22); }
       .ov[data-theme="fantasy"] { --accent: #F2603C; --gold: #F2C14E; }
+      .ov[data-theme="oriental"] { --scrim: rgba(30,22,14,.4); --win: #F7F1E3; --body: #EFE6D2; --card: #FBF7EC; --card-bd: #DCCDAE; --ctl: #E4D7BC; --ctl2: #EADFC8; --ctl-bd: #D3C29E;
+            --fg: #2B241C; --fg-strong: #14100B; --muted: #8A7A62; --knob: #FBF7EC; --accent: #B83A2B; --accent-fg: #FBF7EC; --gold: #9A6B1F; --gold-bg: rgba(184,58,43,.1); --ok: #4E7D4A;
+            --scroll: #CDB98F; --scroll-h: #B83A2B; --glow: 0 24px 60px rgba(60,40,20,.28);
+            font-family: "Nanum Myeongjo", "Noto Serif KR", "AppleMyungjo", "Batang", serif; }
+      .ov[data-theme="oriental"] .win { border-color: #B89B66; }
+      .ov[data-theme="oriental"] header h3::after { content: "樂"; margin-left: 6px; font-size: 11px; color: #FBF7EC; background: #B83A2B; border-radius: 3px; padding: 1px 4px; vertical-align: 2px; }
       .ov[data-theme="dark"] { --scrim: rgba(0,0,0,.7); --win: #0D090B; --body: #120C10; --card: #1A1117; --card-bd: #2C1A24; --ctl: #2A1822; --ctl2: #21141B; --ctl-bd: #3A2230;
             --fg: #EBDCE2; --fg-strong: #FFF; --muted: #9A7F8B; --knob: #B79AA7; --accent: #C2334D; --accent-fg: #FFF2F4; --gold: #D9B98C; --gold-bg: rgba(194,51,77,.15); --ok: #8FBF7F;
             --scroll: #3A2230; --scroll-h: #C2334D; --glow: 0 0 40px rgba(194,51,77,.18), 0 24px 60px rgba(0,0,0,.7); }
