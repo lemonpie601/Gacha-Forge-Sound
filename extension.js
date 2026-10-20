@@ -78,7 +78,7 @@
     // 배경음
     bgmOutside: false,   // 가챠포지 밖에서도 로비 음악
     tempo: 1,
-    engine: "v2", melody: "auto", padInst: "auto", drums: "auto", leadInst: "auto",
+    engine: "v2", ensemble: 1, melody: "auto", padInst: "auto", drums: "auto", leadInst: "auto",
     density: 1,
     fade: 0.6,
     // 분위기 감지
@@ -92,6 +92,7 @@
     launcherPos: "br", launcherSize: 34, launcherOpacity: 0.8,
     iconTopbar: "beforeFs",   // 상단바 아이콘 위치: beforeFs | beforeSettings | end
     iconBattle: true,         // 전투 조작줄에도 아이콘
+    iconStory: true,          // 스토리 화면(Auto·Skip·Log 줄)에도 아이콘
     iconStyle: "speaker",     // speaker | note | gear | wave
     launcherOffsetX: 0, launcherOffsetY: 0,
     hotkey: "alt+s",          // alt+s | alt+m | ctrl+shift+s | off
@@ -1072,6 +1073,7 @@
     if (structural) {
       // 아이콘은 화면이 그려지기 전에(같은 프레임) 바로 다시 붙임 → 새로고침·화면 전환 때 깜빡이지 않음
       if (root) ensureGameButtons();
+      if (lifted && launcher.parentNode !== lifted) liftLauncher(); // 게임이 화면을 다시 그려 플로팅 버튼이 빠졌으면 다시 넣음
       scheduleStructural();
     }
   }
@@ -1092,14 +1094,15 @@
   const iconSvg = () => `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${ICONS[cfg.iconStyle] || ICONS.speaker}</svg>`;
   // 우리 버튼에만 적용되는 스타일 (가챠포지·다른 확장 버튼엔 영향 없음)
   const gameSheet = ("adoptedStyleSheets" in Document.prototype && "replaceSync" in CSSStyleSheet.prototype) ? new CSSStyleSheet() : null;
-  if (gameSheet) gameSheet.replaceSync(`button[data-gfs]:not(.icon-button){display:inline-flex;align-items:center;justify-content:center;padding:calc(var(--f,16px)*0.35) calc(var(--f,16px)*0.55)}
-    button[data-gfs]:not(.icon-button) svg{display:block;width:calc(var(--f,16px)*1.3);height:calc(var(--f,16px)*1.3)}
+  if (gameSheet) gameSheet.replaceSync(`button[data-gfs]:not(.icon-button):not(.vn-tool){display:inline-flex;align-items:center;justify-content:center;padding:calc(var(--f,16px)*0.35) calc(var(--f,16px)*0.55)}
+    button[data-gfs].vn-tool svg{display:block;width:1.25em;height:1.25em}
+    button[data-gfs]:not(.icon-button):not(.vn-tool) svg{display:block;width:calc(var(--f,16px)*1.3);height:calc(var(--f,16px)*1.3)}
     button[data-gfs].gfs-muted .gfs-waves{opacity:.25}`);
   let iconSig = "";
   function makeGameButton(kind, native) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = (native ? "icon-button " : "") + "gf-sound-btn";
+    b.className = (native ? "icon-button " : kind === "story" ? "vn-tool " : "") + "gf-sound-btn";
     b.dataset.gfs = kind;                      // 다른 버튼과 구분하는 고유 표시
     b.setAttribute("aria-label", "소리 설정");
     b.title = "소리 설정" + (cfg.hotkey !== "off" ? ` (${cfg.hotkey.toUpperCase()})` : "");
@@ -1119,7 +1122,7 @@
   }
   function ensureGameButtons(force) {
     if (!root) return;
-    const sig = [cfg.openMode, cfg.iconTopbar, cfg.iconBattle, cfg.iconStyle, cfg.hotkey].join("|");
+    const sig = [cfg.openMode, cfg.iconTopbar, cfg.iconBattle, cfg.iconStory, cfg.iconStyle, cfg.hotkey].join("|");
     if (force || sig !== iconSig) { root.querySelectorAll("button[data-gfs]").forEach((b) => b.remove()); iconSig = sig; }
     if (cfg.openMode === "floating") return;
     if (gameSheet && !root.adoptedStyleSheets.includes(gameSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, gameSheet];
@@ -1134,6 +1137,8 @@
         placeIn(box, "battle", false, fsb, false);
       }
     }
+    // 스토리 화면은 상단바가 없어서 Auto·Skip·Log 줄 끝에 같은 모양(vn-tool)으로 넣음
+    if (cfg.iconStory) for (const tools of root.querySelectorAll(".vn-tools")) placeIn(tools, "story", false, null, true);
     const muted = !cfg.sfxOn && !cfg.bgmOn;
     root.querySelectorAll("button[data-gfs]").forEach((b) => b.classList.toggle("gfs-muted", muted));
   }
@@ -1638,19 +1643,19 @@
     };
     // 테마별 악기 편성
     const STYLE = {
-      fantasy: { tempo: 1, pad: "strings", padCut: 1500, arp: { def: "pluck", mystery: "bell", summon: "bell" }, comp: {}, lead: "horn", leadCenter: 70,
+      fantasy: { ens: [{ i: "pizz", p: "pizz" }, { i: "harp", p: "roll", sec: [1, 2, 3] }, { i: "cello", p: "counter", sec: [2, 3] }], tempo: 1, pad: "strings", padCut: 1500, arp: { def: "pluck", mystery: "bell", summon: "bell" }, comp: {}, lead: "horn", leadCenter: 70,
         drums: { battle: "orch", tense: "orch", happy: "bounce", comedy: "bounce", lobby: "soft", summon: "soft", def: "none" }, rev: 0.5 },
-      otome: { tempo: 0.96, pad: "strings", padCut: 1700, arp: { def: "pluck", calm: "musicbox", romance: "musicbox", summon: "musicbox", sad: "musicbox", mystery: "musicbox" }, comp: {}, lead: "flute", leadCenter: 79,
+      otome: { ens: [{ i: "harp", p: "roll" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "violin", p: "counter", sec: [2, 3], v: 0.8 }], tempo: 0.96, pad: "strings", padCut: 1700, arp: { def: "pluck", calm: "musicbox", romance: "musicbox", summon: "musicbox", sad: "musicbox", mystery: "musicbox" }, comp: {}, lead: "flute", leadCenter: 79,
         drums: { battle: "orch", tense: "orch", happy: "bounce", comedy: "bounce", lobby: "soft", def: "none" }, rev: 0.55 },
-      hunter: { tempo: 1.06, pad: "synth", padCut: 2000, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "bell" }, comp: {}, lead: "lead", leadCenter: 76,
+      hunter: { ens: [{ i: "stab", p: "offstab" }, { i: "chip", p: "glock", sec: [1, 3] }, { i: "cello", p: "counter", sec: [2], v: 0.7 }], tempo: 1.06, pad: "synth", padCut: 2000, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "bell" }, comp: {}, lead: "lead", leadCenter: 76,
         drums: { battle: "battle", tense: "battle", happy: "battle", lobby: "pulse", summon: "pulse", dark: "pulse", comedy: "bounce", def: "none" }, rev: 0.35, sidechain: true },
-      daily: { tempo: 0.92, pad: "warm", padCut: 1200, arp: { def: "epiano", comedy: "pluck" }, comp: { def: true, comedy: false }, lead: "whistle", leadCenter: 77,
+      daily: { ens: [{ i: "guitar", p: "strum" }, { i: "celesta", p: "glock", sec: [1, 3], v: 0.8 }], tempo: 0.92, pad: "warm", padCut: 1200, arp: { def: "epiano", comedy: "pluck" }, comp: { def: true, comedy: false }, lead: "whistle", leadCenter: 77,
         drums: { def: "lofi", sad: "none", mystery: "none", dark: "none", tense: "pulse", battle: "battle" }, rev: 0.4, swing: 0.16 },
-      dark: { tempo: 0.9, pad: "synth", padCut: 800, arp: { def: "bell", battle: "synthpluck", tense: "synthpluck" }, comp: {}, lead: "choir", leadCenter: 72,
+      dark: { ens: [{ i: "harpsichord", p: "roll", v: 0.8 }, { i: "cello", p: "counter", sec: [1, 2, 3] }], tempo: 0.9, pad: "synth", padCut: 800, arp: { def: "bell", battle: "synthpluck", tense: "synthpluck" }, comp: {}, lead: "choir", leadCenter: 72,
         drums: { battle: "battle", tense: "pulse", def: "none" }, rev: 0.7 },
-      oriental: { tempo: 0.94, pad: "warm", padCut: 1000, arp: { def: "zither", mystery: "bell", summon: "zither" }, comp: {}, lead: "bamboo", leadCenter: 79,
+      oriental: { ens: [{ i: "erhu", p: "counter", sec: [1, 2, 3] }, { i: "dulcimer", p: "roll", sec: [2, 3], v: 0.8 }], tempo: 0.94, pad: "warm", padCut: 1000, arp: { def: "zither", mystery: "bell", summon: "zither" }, comp: {}, lead: "bamboo", leadCenter: 79,
         drums: { battle: "taiko", tense: "taiko", happy: "janggu", comedy: "janggu", lobby: "janggu", def: "none" }, rev: 0.6, drone: true },
-      idol: { tempo: 1, pad: "supersaw", padCut: 3200, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
+      idol: { ens: [{ i: "piano", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 3200, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
         drums: { def: "kpop", calm: "rnb", romance: "rnb", sad: "rnb", mystery: "rnb", dark: "pulse" }, rev: 0.4, sidechain: true,
         bpm: { lobby: 118, summon: 120, battle: 128, calm: 88, happy: 124, comedy: 122, romance: 80, sad: 74, tense: 120, mystery: 92, dark: 96, glitch: 110 },
         padBy: { calm: "warm", romance: "warm", sad: "warm", mystery: "warm" }, leadBy: { calm: "whistle", romance: "whistle", sad: "whistle", mystery: "whistle" } },
@@ -1765,6 +1770,7 @@
         lead: (st.leadBy && st.leadBy[mood]) || st.lead, leadCenter: st.leadCenter,
         drums: (st.drums[mood] !== undefined ? st.drums[mood] : st.drums.def) || "none",
         rev: st.rev, swing: st.swing || 0, sidechain: !!st.sidechain, drone: !!st.drone,
+        ens: mood === "glitch" ? null : st.ens,
       };
       if (cfg.melody !== "auto") p.arp = cfg.melody;
       if (cfg.padInst !== "auto") p.pad = cfg.padInst;
@@ -1908,6 +1914,127 @@
         n.connect(bp).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
       }
     }
+    /* ---------- 합주 악기 (테마마다 다른 '진짜 악기' 색) ----------
+     *  뜯는 현(기타·하프·피치카토·하프시코드·양금): 카플러스-스트롱 방식으로 실제 줄이 떨리듯 만든 소리.
+     *   악기마다 음 두 개(낮은 음·높은 음)만 미리 만들어 두고 재생 속도로 음높이를 바꿈 → 메모리 적게 씀
+     *  활로 켜는 현(첼로·바이올린·해금), 신스 스탭, 피아노, 첼레스타 */
+    const KS_DEF = {
+      guitar:      { len: 2.2, d: 0.9965, w: 0.5, soft: 0.55, pos: 0.18, gain: 1 },
+      harp:        { len: 2.6, d: 0.9978, w: 0.5, soft: 0.7, pos: 0.3, gain: 0.9 },
+      pizz:        { len: 0.7, d: 0.985, w: 0.5, soft: 0.6, pos: 0.25, gain: 1.2 },
+      harpsichord: { len: 1.6, d: 0.997, w: 0.72, soft: 0.1, pos: 0.08, gain: 0.8 },
+      dulcimer:    { len: 2.2, d: 0.9972, w: 0.62, soft: 0.25, pos: 0.12, gain: 0.85 },
+    };
+    const ksCache = new Map();
+    function ksBuffer(inst, base) {
+      const key = inst + base; if (ksCache.has(key)) return ksCache.get(key);
+      const d = KS_DEF[inst], sr = ctx.sampleRate, N = Math.max(2, Math.round(sr / mtof(base))), len = Math.floor(d.len * sr);
+      const buf = ctx.createBuffer(1, len, sr), y = buf.getChannelData(0);
+      let lp = 0; const P = Math.max(1, Math.floor(N * d.pos));
+      for (let i = 0; i < N; i++) { lp = lp * d.soft + (Math.random() * 2 - 1) * (1 - d.soft); y[i] = lp; }
+      for (let i = N - 1; i >= P; i--) y[i] -= y[i - P] * 0.9; // 줄을 뜯는 자리(음색)
+      for (let i = N; i < len; i++) y[i] = d.d * (d.w * y[i - N] + (1 - d.w) * y[i - N - 1 < 0 ? 0 : i - N - 1]);
+      let pk = 0; for (let i = 0; i < Math.min(len, N * 4); i++) pk = Math.max(pk, Math.abs(y[i]));
+      const k = pk > 0 ? 0.9 / pk : 1; const fo = Math.floor(sr * 0.05);
+      for (let i = 0; i < len; i++) y[i] *= k * (i > len - fo ? (len - i) / fo : 1);
+      const out = { buf, f: sr / N }; ksCache.set(key, out); return out;
+    }
+    function playString(inst, m, t, dur, vol, rev, pan = 0) {
+      const base = m < 57 ? 45 : 69, kb = ksBuffer(inst, base);
+      const src = ctx.createBufferSource(); src.buffer = kb.buf; src.playbackRate.value = mtof(m) / kb.f;
+      const g = ctx.createGain(); g.gain.setValueAtTime(vol * KS_DEF[inst].gain, t);
+      const end = t + Math.max(0.08, dur); g.gain.setTargetAtTime(0.0001, end, 0.06); // 손으로 줄을 막듯 멈춤
+      let node = src.connect(g);
+      if (pan && ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = pan; node = node.connect(pn); }
+      node.connect(musicIn); revSend(g, rev);
+      src.start(t); src.stop(Math.min(t + kb.buf.duration / src.playbackRate.value, end + 0.4));
+    }
+    function playBowed(inst, m, t, dur, vol, rev) { // 첼로·바이올린·해금
+      const f = mtof(m), g = ctx.createGain();
+      const a = inst === "erhu" ? 0.08 : 0.16;
+      const stop = adsr(g, t, vol, a, 0.4, 0.8, dur * 0.95, 0.3);
+      const o = ctx.createOscillator(); o.type = "sawtooth";
+      if (inst === "erhu") { o.frequency.setValueAtTime(f * 0.97, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.12); } else o.frequency.setValueAtTime(f, t);
+      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = inst === "erhu" ? 5.6 : 5;
+      lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * (inst === "erhu" ? 0.012 : 0.006), t + Math.min(0.5, dur * 0.5)); lfo.connect(lg).connect(o.frequency);
+      const body = ctx.createBiquadFilter();
+      if (inst === "erhu") { body.type = "bandpass"; body.frequency.value = 1300; body.Q.value = 1.6; } // 콧소리 같은 해금
+      else { body.type = "lowpass"; body.frequency.value = inst === "cello" ? 1500 : 2800; body.Q.value = 0.9; }
+      const air = ctx.createBiquadFilter(); air.type = "peaking"; air.frequency.value = inst === "cello" ? 250 : 900; air.gain.value = 4; air.Q.value = 1;
+      o.connect(body).connect(air).connect(g).connect(musicIn); revSend(g, rev + 0.15);
+      o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
+    }
+    function playEnsInst(inst, m, t, dur, vol, rev, pan) {
+      if (KS_DEF[inst]) return playString(inst, m, t, dur, vol, rev, pan);
+      if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev);
+      const f = mtof(m);
+      if (inst === "celesta") return fmVoice(f, t, dur, vol, 4, 0.7, 1.1, musicIn, rev + 0.2);
+      if (inst === "chip") { const g = ctx.createGain(); const stop = adsr(g, t, vol * 0.5, 0.002, 0.08, 0.3, Math.min(dur, 0.12), 0.05); const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = f; const lp = ctx.createBiquadFilter(); lp.frequency.value = 5000; o.connect(lp).connect(g).connect(musicIn); revSend(g, rev); o.start(t); o.stop(stop); return; }
+      if (inst === "piano") { fmVoice(f, t, dur, vol, 1, 1.6, 0.9, musicIn, rev); fmVoice(f * 2, t, dur, vol * 0.25, 1, 0.8, 0.5, musicIn, rev); return; }
+      if (inst === "stab") { // 신스 스탭: 두 톱니파를 어긋나게 + 필터가 빠르게 닫힘
+        const g = ctx.createGain(); const stop = adsr(g, t, vol * 0.6, 0.004, 0.12, 0.2, dur, 0.08);
+        const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 3; lp.frequency.setValueAtTime(3500, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.18);
+        [-12, 12].forEach((dt) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = dt; o.connect(lp); o.start(t); o.stop(stop); });
+        lp.connect(g).connect(musicIn); revSend(g, rev); return;
+      }
+    }
+    // 합주 패턴: 한 마디(16칸) 안에서 언제 어떻게 치는지
+    let counterPrev = null, counterPrevLead = null;
+    function playEnsemble(p, bar, s, t, six, barDur, voicing, chord, root, sec) {
+      const amt = cfg.ensemble; if (!p.ens || !(amt > 0.01) || cfg.lowPower) return;
+      const dyn = sec >= 0 ? SEC_DYN[sec] : 0.85;
+      for (const L of p.ens) {
+        if (L.sec && !L.sec.includes(sec)) continue;
+        const v = (L.v || 1) * amt * dyn, rev = p.rev;
+        switch (L.p) {
+          case "roll": { // 하프처럼 아래에서 위로 굴리기
+            if (s === 0) { const ns = [voicing[0] - 12, ...voicing, voicing[1] + 12]; ns.forEach((m, i) => playEnsInst(L.i, m, t + i * six * 0.45, barDur * 0.9, 0.05 * v, rev, -0.5 + i / ns.length)); }
+            else if (s === 8 && p.energy >= 1) [voicing[1] + 12, voicing[2 % voicing.length] + 12].forEach((m, i) => playEnsInst(L.i, m, t + i * six * 0.5, barDur * 0.45, 0.035 * v, rev, 0.3));
+            break;
+          }
+          case "strum": { // 기타 스트로크: 다운(1·3박) 업(사이)
+            const pat = p.energy >= 2 ? [0, 4, 6, 8, 10, 12, 14] : p.energy === 1 ? [0, 6, 8, 12, 14] : [0, 8];
+            if (!pat.includes(s)) break;
+            const down = s % 4 === 0, ns = [root + 40 + (root > 7 ? -12 : 0), ...voicing.slice(0, 4)];
+            const order = down ? ns : ns.slice(1).reverse();
+            order.forEach((m, i) => playEnsInst(L.i, m, t + i * 0.011, down ? six * 3.6 : six * 1.8, (down ? 0.04 : 0.024) * v, rev * 0.6, -0.2 + i * 0.1));
+            break;
+          }
+          case "offstab": { // 엇박에 짧게 치는 화음
+            if (p.comp && L.i === "piano") break;
+            const pat = p.energy >= 2 ? [2, 6, 10, 14] : [4, 12];
+            if (pat.includes(s)) voicing.slice(0, 3).forEach((m, i) => playEnsInst(L.i, m + (L.i === "piano" ? 12 : 0), t + i * 0.006, six * 1.3, 0.03 * v, rev * 0.7, (i - 1) * 0.3));
+            break;
+          }
+          case "pizz": { // 현악 피치카토: 박마다 화음 음을 번갈아
+            if (s % 4 === 0 && (p.energy >= 1 || s % 8 === 0)) { const tones = [root + 48, (chord[1] % 12) + 48, (chord[2 % chord.length] % 12) + 48, root + 60]; playEnsInst(L.i, tones[(s / 4 + bar) % 4], t, six * 2, 0.06 * v, rev, (s / 4) % 2 ? 0.35 : -0.35); }
+            break;
+          }
+          case "counter": { // 대선율: 길게 켜는 두 번째 멜로디(멜로디와 반대로 움직임)
+            const lo = L.i === "cello" ? 48 : L.i === "violin" ? 74 : 67, hi = lo + 14;
+            if (s !== 0 && !(p.energy >= 1 && s === 8)) break;
+            const pcs = chord.map((m) => ((m % 12) + 12) % 12), cand = [];
+            for (let m = lo; m <= hi; m++) if (pcs.includes(m % 12)) cand.push(m);
+            if (!cand.length) break;
+            const prev = counterPrev == null ? cand[Math.floor(cand.length / 2)] : counterPrev;
+            const leadDown = lastLead != null && counterPrevLead != null && lastLead < counterPrevLead;
+            const opts = cand.filter((m) => m !== prev && Math.abs(m - prev) <= 5);
+            const ups = opts.filter((m) => m > prev), downs = opts.filter((m) => m < prev);
+            const pool = leadDown ? (ups.length ? ups : downs) : (downs.length ? downs : ups); // 멜로디와 반대 방향으로
+            const pick = pool.length ? pool.sort((a, b) => Math.abs(a - prev) - Math.abs(b - prev))[0] : cand.includes(prev) ? prev : cand[0];
+            counterPrev = Math.max(lo, Math.min(hi, pick)); counterPrevLead = lastLead;
+            playEnsInst(L.i, counterPrev, t, (p.energy >= 1 ? barDur / 2 : barDur) * 0.98, (L.i === "cello" ? 0.05 : 0.035) * v, rev);
+            break;
+          }
+          case "glock": { // 멜로디 중 센박 음을 한 옥타브 위에서 반짝 겹쳐 줌
+            if (p.lead === "none" || cfg.lowPower || bar < 2) break;
+            const mbar = p.melody[(bar - 2) % p.melody.length];
+            for (const n of mbar) if (n.st === s && (n.st % 4 === 0 || n.len >= 6)) playEnsInst(L.i, n.m + 12, t + 0.004, Math.min(n.len * six, 1.2), 0.03 * v, rev + 0.1, 0.25);
+            break;
+          }
+        }
+      }
+    }
     function playBass(m, t, dur, vol, style) {
       const g = ctx.createGain(); const stop = adsr(g, t, vol, 0.008, 0.2, style === "synth" ? 0.55 : 0.8, dur * 0.95, 0.12);
       const o = ctx.createOscillator(); o.type = style === "synth" ? "sawtooth" : "triangle"; o.frequency.value = mtof(m);
@@ -1985,7 +2112,10 @@
         }
       }
 
-      // 리드 멜로디: 8마디 악절(A + A′)에서 이번 마디 음들
+      // 합주 악기(테마 고유 악기들). 곡이 진행될수록 하나씩 더해짐
+      playEnsemble(p, bar, s, t, six, barDur, voicing, chord, root, bar < 2 ? -1 : Math.floor(((bar - 2) % 16) / 4));
+
+      // 리드 멜로디: 16마디 노래(A·A′·B·A″)에서 이번 마디 음들
       if (p.lead !== "none" && !cfg.lowPower && bar >= 2) { // 반주가 두 마디 깔린 뒤 노래가 들어옴
         const mb = (bar - 2) % p.melody.length, mbar = p.melody[mb];
         for (const n of mbar) if (n.st === s) {
@@ -2292,7 +2422,7 @@
       card("소리별 설정", soundRows, "그룹 오른쪽 스위치로 묶음째 끌 수 있어요. 소리마다 볼륨·음높이·내 파일 교체가 돼요. 파일은 이 기기에만 저장돼요."),
     bgm:
       card("음악 엔진", chips("engine", [["v1", "v1 · 가벼움"], ["v2", "v2 · 풍성함"]]), "v1은 예전 엔진이라 가볍고 단순해요. v2는 멜로디·반주가 풍성한 새 엔진이에요. 고른 엔진만 실행되고, 다른 쪽은 메모리에서 비워져요.") +
-      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"], ["bamboo", "대금·피리"], ["whistle", "휘파람"], ["vocal", "보컬 찹"], ["choir", "합창"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
+      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"], ["bamboo", "대금·피리"], ["whistle", "휘파람"], ["vocal", "보컬 찹"], ["choir", "합창"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + range("ensemble", "합주 악기", 0, 1.5, 0.05, "pct", "테마 고유 악기(하프·기타·첼로·해금·피아노 등)가 곡이 진행될수록 하나씩 더해져요. 0%면 꺼져요 (v2 전용)") + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
       card("상황별 음악", sitRows, "상황마다 자동 생성·내 파일·끄기 중에 골라요. ▶는 12초 미리 듣기예요."),
     mood:
       card("감지 방식", range("sensitivity", "감도", 0.5, 2, 0.05, "x", "높이면 작은 단서에도 분위기가 바뀌어요") + range("minHold", "한 분위기 최소 유지 시간", 3, 60, 1, "s", "강한 장면은 이 시간의 절반만 지나도 바뀌어요")) +
@@ -2306,6 +2436,7 @@
       `<div data-show="icon">` + card("아이콘 설정",
         select("iconTopbar", "상단바 아이콘 위치", [["beforeFs", "전체 화면 아이콘 앞 (기본)"], ["beforeSettings", "게임 설정 아이콘 앞"], ["end", "맨 끝"]], "오른쪽 위 '월드·게임 설정·전체 화면' 아이콘 줄이에요") +
         toggle("iconBattle", "전투 조작줄에도 넣기", "Auto·배속·전체 화면 버튼 옆") +
+        toggle("iconStory", "스토리 화면에도 넣기", "대사창 위 Auto·Skip·Log 버튼 옆") +
         select("iconStyle", "아이콘 모양", [["speaker", "스피커"], ["note", "음표"], ["wave", "음파"], ["gear", "톱니"]]),
         "가챠포지 버튼과 같은 모양으로 들어가고, 전체 화면에서도 팝업이 열려요. 다른 확장이 같은 줄에 버튼을 넣어도 서로 밀어내지 않아요.") + `</div>` +
       `<div data-show="floating">` + card("플로팅 버튼 설정",
@@ -2514,7 +2645,17 @@
   function closePopup() { popOpen = false; try { dlg.close(); } catch { dlg.removeAttribute("open"); } stopPreview(); }
   dlg.addEventListener("cancel", (e) => { e.preventDefault(); closePopup(); }); // Esc
   // 팝업을 연 채로 전체 화면을 켜고 끄면 다시 맨 위로 올림
-  const onFs = () => { if (popOpen) setTimeout(showDlg, 60); };
+  // 플로팅 버튼: 전체 화면일 땐 전체 화면이 된 가챠포지 화면 안으로 옮겨서 보이고 눌리게 함(끝나면 제자리로).
+  //  서랍이 가져간 경우는 건드리지 않음
+  let lifted = null;
+  function liftLauncher() {
+    const fs = document.fullscreenElement || document.webkitFullscreenElement;
+    const mine = launcher.parentNode === document.body || (lifted && launcher.parentNode === lifted) || !launcher.parentNode;
+    const want = !!fs && mine && cfg.openMode !== "icon" && launcher.style.getPropertyPriority("display") !== "important";
+    if (want) { const box = fs.shadowRoot || fs; if (launcher.parentNode !== box) box.appendChild(launcher); lifted = box; }
+    else if (lifted) { if (mine) document.body.appendChild(launcher); lifted = null; }
+  }
+  const onFs = () => { setTimeout(liftLauncher, 30); if (popOpen) setTimeout(showDlg, 60); };
   document.addEventListener("fullscreenchange", onFs);
   document.addEventListener("webkitfullscreenchange", onFs);
   later(() => { document.removeEventListener("fullscreenchange", onFs); document.removeEventListener("webkitfullscreenchange", onFs); });
@@ -2564,7 +2705,7 @@
   }
 
   // 설정 바뀔 때 엔진에 반영
-  const MUSIC_KEYS = new Set(["tempo", "melody", "padInst", "drums", "leadInst", "density", "lowPower", "theme"]);
+  const MUSIC_KEYS = new Set(["ensemble", "tempo", "melody", "padInst", "drums", "leadInst", "density", "lowPower", "theme"]);
   function applyChange(path) {
     const top = path.split(".")[0];
     save(); applyVolumes(); syncOutputs();
@@ -2576,7 +2717,7 @@
     }
     if (top.startsWith("launcher")) placeLauncher();
     if (/^icon|^hotkey$|^sfxOn$|^bgmOn$|^openMode$/.test(top)) ensureGameButtons();
-    if (top === "openMode") { placeLauncher(); syncUi(); }
+    if (top === "openMode") { placeLauncher(); liftLauncher(); syncUi(); }
     if (top === "theme") { detectGenre(true); setSfxFx(activeTheme()); syncUi(); }
     if (top === "keywords" || top === "genreKeywords") wordCache.clear();
   }
