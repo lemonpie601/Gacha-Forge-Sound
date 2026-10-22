@@ -1662,11 +1662,12 @@
         leadSec: { lobby: ["horn", "horn", "trumpet", "horn"], summon: ["horn", "trumpet", "trumpet", "horn"], happy: ["flute", "flute", "trumpet", "flute"] },
         leadBy: { calm: "flute", romance: "violin", sad: "violin", mystery: "flute", comedy: "flute", dark: "cello" },
         drums: { battle: "orch", tense: "orch", happy: "orchSoft", comedy: "orchSoft", lobby: "orchSoft", summon: "orchSoft", def: "none" }, rev: 0.55, mix: 1.8, mixBattle: 1 },
-      otome: { // 실내악 무도회: 하프·피치카토·첼로·바이올린·플루트·첼레스타 (드럼 없음)
-        ens: [{ i: "harp", p: "roll" }, { i: "pizz", p: "offstab" }, { i: "violin", p: "counter", sec: [2, 3], v: 0.8 }], ensBattle: [{ i: "harp", p: "roll", sec: [0, 1, 3] }], tempo: 0.96, pad: "none", padCut: 1700, arp: { def: "none", calm: "musicbox", sad: "musicbox", summon: "musicbox" }, comp: {}, lead: "flute", leadCenter: 74, bassInst: "cello", bassBattle: false, noAutoWaltz: true,
-        leadSec: { lobby: ["flute", "flute", "violin", "flute"], summon: ["flute", "flute", "violin", "flute"], romance: ["violin", "violin", "flute", "violin"] },
-        leadBy: { sad: "violin", tense: "violin", mystery: "flute", dark: "violin" },
-        drums: { battle: "orch", tense: "orch", def: "none" }, rev: 0.6, mix: 1.4, mixBattle: 2.2 },
+      otome: { // 오토메 게임 BGM: 피아노가 중심, 부드러운 현악, 상큼한 팝 리듬, 피치카토·하프·벨로 반짝임(무도회 장면만 왈츠)
+        ens: [{ i: "piano", p: "pop" }, { i: "pizz", p: "offstab", sec: [1, 3], v: 0.8 }, { i: "harp", p: "roll", sec: [2] }, { i: "violin", p: "counter", sec: [2, 3], v: 0.7 }, { i: "glock", p: "glock", sec: [2], v: 0.5 }], ensBattle: [{ i: "piano", p: "pop", v: 0.8 }], tempo: 1, pad: "strings", padCut: 1300, arp: { def: "none", mystery: "musicbox" }, comp: {}, lead: "piano", leadCenter: 76, noAutoWaltz: true,
+        leadSec: { lobby: ["piano", "flute", "violin", "piano"], summon: ["piano", "flute", "violin", "piano"], happy: ["piano", "flute", "violin", "piano"], romance: ["piano", "piano", "violin", "piano"], calm: ["piano", "flute", "piano", "piano"] },
+        leadBy: { sad: "piano", tense: "violin", mystery: "flute", dark: "violin", comedy: "clarinet" },
+        padBy: { sad: "none" },
+        drums: { lobby: "popSoft", summon: "popSoft", happy: "popSoft", comedy: "bounce", battle: "orch", tense: "orch", def: "none" }, rev: 0.5, mix: 0.75, mixBattle: 1 },
       hunter: { // 전자음 게임 OST: 신스 패드·아르페지에이터·신스 베이스·808 드럼·신스 리드
         ens: [{ i: "stab", p: "offstab", sec: [1, 2, 3] }], ensBattle: [], tempo: 1.06, pad: "synth", padCut: 2000, arp: { def: "synthpluck", mystery: "bell" }, comp: {}, lead: "lead", leadCenter: 72, bassInst: "synthbass", bassBattle: false,
         drums: { battle: "battle", tense: "808", happy: "808", lobby: "808", summon: "808", dark: "808", comedy: "808", mystery: "808", def: "none" }, rev: 0.35, sidechain: true, mix: 2.5, mixBattle: 1 },
@@ -1739,10 +1740,12 @@
         tense:  { key: 50, mode: "harm", meter: "4/4", bpm: 100, prog: "0:m 8:M 7:M 0:m", progB: "5:m 1:M 7:7 7:7", mel: "ostinato" },
         battle: { key: 50, mode: "minor", meter: "4/4", bpm: 144, prog: "0:m 8:M 10:M 0:m", progB: "3:M 10:M 8:M 7:M", mel: "battle" },
       },
-      otome: {
-        bright: { key: 53, mode: "major", meter: "3/4", bpm: 138, prog: "5:M7 7:7 4:m7 9:m7", progB: "2:m7 7:7 0:M7 9:m7", mel: "waltz" },
-        soft:   { key: 53, mode: "major", meter: "3/4", bpm: 100, prog: "0:M7 4:m7 5:M7 7:sus4", progB: "9:m7 2:m7 5:M7 7:7", mel: "waltz" },
-        sad:    { key: 53, mode: "major", meter: "4/4", bpm: 64, prog: "9:m 5:M 0:M 7:M", progB: "2:m7 4:m7 5:M7 7:sus4", mel: "ballad" },
+      otome: { // 달달한 팝(왕도 진행), 피아노 발라드, 무도회만 왈츠
+        bright: { key: 53, mode: "major", meter: "4/4", bpm: 112, prog: "5:M7 7:7 4:m7 9:m7", progB: "5:M 7:M 9:m 0:M", mel: "sweet" },
+        summon: { key: 53, mode: "major", meter: "4/4", bpm: 116, prog: "5:M7 7:7 4:m7 9:m7", progB: "2:m7 7:7 0:M 9:m7", mel: "sweet" },
+        comedy: { key: 55, mode: "major", meter: "4/4", bpm: 126, prog: "0:M 9:m 2:m7 7:7", progB: "5:M 7:M 4:m 9:m", mel: "bouncy" },
+        soft:   { key: 51, mode: "major", meter: "4/4", bpm: 74, prog: "0:add9 7:M 9:m7 5:M7", progB: "2:m7 4:m7 5:M7 7:sus4", mel: "ballad" },
+        sad:    { key: 53, mode: "major", meter: "4/4", bpm: 64, prog: "9:m 5:M7 0:M 7:M", progB: "2:m7 4:m7 5:M7 7:sus4", mel: "ballad" },
         tense:  { key: 57, mode: "harm", meter: "4/4", bpm: 100, prog: "0:m 5:m 7:7 0:m", progB: "8:M 5:m 2:m7b5 7:7", mel: "strings" },
         battle: { key: 57, mode: "minor", meter: "4/4", bpm: 140, prog: "0:m 8:M 10:M 0:m", progB: "5:m 8:M 7:M 7:7", mel: "battle" },
       },
@@ -1792,6 +1795,7 @@
     // 멜로디 말투: 리듬 칸(시작, 길이), 도약·반복 성향, 꾸밈음 종류
     const MEL = {
       fanfare:   { A: [[[0, 6], [6, 2], [8, 8]], [[0, 4], [4, 2], [6, 2], [8, 8]], [[0, 3], [3, 1], [4, 4], [8, 4], [12, 4]]], B: [[[0, 8], [8, 4], [12, 4]], [[0, 12], [12, 4]]], leap: 0.5, rep: 0.1, up: true },
+      sweet:     { A: [[[0, 2], [2, 2], [4, 4], [8, 2], [10, 2], [12, 4]], [[0, 3], [3, 3], [6, 2], [8, 6], [14, 2]], [[2, 2], [4, 2], [6, 2], [8, 8]]], B: [[[0, 4], [4, 4], [8, 6], [14, 2]], [[0, 6], [6, 2], [8, 8]]], leap: 0.2, rep: 0.15, app: "step" },
       ballad:    { A: [[[0, 8], [8, 4], [12, 4]], [[0, 4], [4, 4], [8, 8]], [[0, 12], [12, 2], [14, 2]]], B: [[[0, 6], [6, 2], [8, 8]], [[0, 16]]], leap: 0.15, rep: 0.05, app: "step" },
       ostinato:  { A: [[[0, 2], [2, 2], [4, 2], [6, 2], [8, 2], [10, 2], [12, 2], [14, 2]]], B: [[[0, 4], [4, 4], [8, 4], [12, 4]]], leap: 0, rep: 0.35, riff: [0, 1, 0, -1, 0, 1, 2, 1], span: 7 },
       strings:   { A: [[[0, 4], [4, 4], [8, 4], [12, 4]], [[0, 2], [2, 2], [4, 4], [8, 2], [10, 2], [12, 4]]], B: [[[0, 8], [8, 8]], [[0, 6], [6, 2], [8, 8]]], leap: 0.2, rep: 0.05 },
@@ -2048,6 +2052,7 @@
       if (inst === "musicbox") return playInst("musicbox", f / 2, t, Math.max(dur, 1), vol * 1.15, musicIn, rev);
       if (inst === "glock") return fmVoice(f, t, Math.max(dur, 1), vol * 0.85, 2.76, 0.4, 1.4, musicIn, rev + 0.15);
       if (inst === "organ") return playOrgan(m, t, dur, vol * 0.9, rev);
+      if (inst === "piano") return playPiano(m, t, dur, vol * 1.25, rev, pan);
       if (GUGAK.has(inst)) return playGugak(inst, m, prevM, t, dur, vol * (inst === "piri" ? 0.85 : 1), rev, pan);
       const g = ctx.createGain();
       const breathy = inst === "flute" || inst === "bamboo" || inst === "whistle";
@@ -2055,7 +2060,7 @@
       const gate = inst === "vocal" ? Math.min(dur, 0.32) : dur;
       const stop = adsr(g, t, vol, a, 0.3, inst === "vocal" ? 0.6 : 0.85, gate * 0.97, inst === "vocal" ? 0.12 : 0.2);
       const o = ctx.createOscillator();
-      o.type = inst === "lead" || inst === "horn" || inst === "trumpet" || inst === "vocal" || inst === "choir" ? "sawtooth" : "sine";
+      o.type = inst === "lead" || inst === "horn" || inst === "trumpet" || inst === "vocal" || inst === "choir" ? "sawtooth" : inst === "clarinet" ? "square" : "sine";
       const glide = pf && Math.abs(pf - f) < f * 0.6 && inst !== "vocal";
       if (glide) { o.frequency.setValueAtTime(pf, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.06); }
       else if (inst === "bamboo") { o.frequency.setValueAtTime(f * 0.94, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.1); }
@@ -2066,13 +2071,14 @@
       lfo.connect(lg).connect(o.frequency);
       let out = o;
       if (inst === "lead" || inst === "horn") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = inst === "horn" ? 1300 : 2600; o.connect(lp); out = lp; }
+      if (inst === "clarinet") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1500; lp.Q.value = 0.7; o.connect(lp); out = lp; }
       if (inst === "trumpet") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 1.2; lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(2600, t + 0.05); lp.frequency.exponentialRampToValueAtTime(1700, t + 0.3); o.connect(lp); out = lp; }
       if (inst === "choir" || inst === "vocal") { // 모음 소리(아·오): 포먼트 두 개
         const mix = ctx.createGain(); const fm = inst === "choir" ? [[570, 0.9], [840, 0.6]] : [[730, 1], [1090, 0.7]];
         fm.forEach(([ff, gg]) => { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = ff; bp.Q.value = 6; const bg = ctx.createGain(); bg.gain.value = gg * 2.2; o.connect(bp).connect(bg).connect(mix); });
         out = mix;
       }
-      const lv = inst === "lead" ? 0.45 : inst === "horn" ? 0.7 : inst === "trumpet" ? 0.5 : inst === "vocal" ? 1.1 : inst === "choir" ? 1.2 : 1;
+      const lv = inst === "lead" ? 0.45 : inst === "horn" ? 0.7 : inst === "trumpet" ? 0.5 : inst === "clarinet" ? 0.55 : inst === "vocal" ? 1.1 : inst === "choir" ? 1.2 : 1;
       const lg2 = ctx.createGain(); lg2.gain.value = lv;
       out.connect(lg2).connect(g).connect(exprOut(t, dur, pan)); revSend(g, rev + (breathy ? 0.15 : 0.05));
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
@@ -2147,6 +2153,27 @@
       const n = ctx.createBufferSource(); n.buffer = noiseBuf; const nb = ctx.createBiquadFilter(); nb.type = "bandpass"; nb.frequency.value = inst === "cello" ? 1200 : 3000; nb.Q.value = 1;
       const ng = ctx.createGain(); adsr(ng, t, vol * 0.05, a, 0.3, 0.5, dur * 0.9, 0.2); n.connect(nb).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
     }
+    // 피아노: 배음을 하나씩 쌓고(높은 배음일수록 빨리 사라짐, 살짝 늘어난 배음), 두 줄을 미세하게 어긋나게 + 해머 소리
+    function playPiano(m, t, dur, vol, rev, pan = 0) {
+      const f = mtof(m), out = ctx.createGain(); out.gain.value = vol;
+      const T = 2.6 * Math.pow(261 / f, 0.55); // 낮은 음일수록 오래 울림
+      const parts = cfg.lowPower ? 3 : 6;
+      for (let k = 1; k <= parts; k++) {
+        const fk = f * k * Math.sqrt(1 + 0.0004 * k * k); if (fk > 7000) break;
+        const g = ctx.createGain(); const a = 1 / Math.pow(k, 1.25) * (k === 1 ? 1 : 0.8);
+        const dk = Math.max(0.25, T / Math.pow(k, 0.8));
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(a, t + 0.004);
+        g.gain.setTargetAtTime(a * 0.35, t + 0.004, dk * 0.15); g.gain.setTargetAtTime(0.0001, t + 0.05, dk * 0.5);
+        const end = t + Math.min(dur, dk * 2.5); g.gain.setTargetAtTime(0.0001, end, 0.06); // 건반을 떼면 댐퍼가 내려옴
+        [0, k === 1 ? 2.5 : 0].forEach((det, j) => { if (j && !det) return; const o = ctx.createOscillator(); o.frequency.value = fk; o.detune.value = det; o.connect(g); o.start(t); o.stop(end + 0.35); });
+        g.connect(out);
+      }
+      noiseHit(t, vol * 0.08, "bandpass", Math.min(3000, f * 4), 0.02, 1.5); // 해머
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = Math.min(5200, 1800 + f * 2.2);
+      out.connect(lp); let node = lp;
+      if (pan && ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = pan; node = lp.connect(pn); }
+      node.connect(musicIn); revSend(lp, rev + 0.1);
+    }
     // 파이프오르간 음색(배음을 겹친 파형)
     let organPW = null;
     const organWave = () => organPW || (organPW = ctx.createPeriodicWave(new Float32Array([0, 1, 0.65, 0.4, 0.3, 0.12, 0.18, 0.05, 0.1]), new Float32Array(9)));
@@ -2219,6 +2246,7 @@
       if (inst === "gayageum" || inst === "geomungo") return playString(inst, m, t, dur, vol, rev, pan, null, { nong: dur > 0.5 ? 1 : 0, bend: dur > 0.9 && Math.random() < 0.25 ? (Math.random() < 0.6 ? 1 : -1) : 0 });
       if (KS_DEF[inst]) return playString(inst, m, t, dur, vol, rev, pan);
       if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev, pan);
+      if (inst === "clarinet") return playLead("clarinet", m, null, t, dur, vol, rev, pan);
       if (inst === "flute" || inst === "horn" || inst === "trumpet" || inst === "lead" || inst === "whistle" || inst === "vocal" || inst === "musicbox" || inst === "glock") return playLead(inst, m, null, t, dur, vol, rev, pan);
       const f = mtof(m);
       if (inst === "celesta") return fmVoice(f, t, dur, vol * 0.85, 4, 0.5, 1.1, musicIn, rev + 0.2);
@@ -2242,7 +2270,7 @@
         node.connect(musicIn); revSend(g, inst === "synthbass" ? 0 : rev * 0.6); return;
       }
       if (inst === "chip") { const g = ctx.createGain(); const stop = adsr(g, t, vol * 0.5, 0.002, 0.08, 0.3, Math.min(dur, 0.12), 0.05); const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = f; const lp = ctx.createBiquadFilter(); lp.frequency.value = 5000; o.connect(lp).connect(g).connect(musicIn); revSend(g, rev); o.start(t); o.stop(stop); return; }
-      if (inst === "piano") { fmVoice(f, t, dur, vol, 1, 1.6, 0.9, musicIn, rev); fmVoice(f * 2, t, dur, vol * 0.25, 1, 0.8, 0.5, musicIn, rev); return; }
+      if (inst === "piano") return playPiano(m, t, dur, vol * 1.1, rev, pan);
       if (inst === "stab") { // 신스 스탭: 두 톱니파를 어긋나게 + 필터가 빠르게 닫힘
         const g = ctx.createGain(); const stop = adsr(g, t, vol * 0.6, 0.004, 0.12, 0.2, dur, 0.08);
         const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 3; lp.frequency.setValueAtTime(3500, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.18);
@@ -2287,7 +2315,7 @@
      *  fill: 후렴 직전·곡 끝의 넘어가는 소리 */
     const ARR = {
       fantasy:  { answer: "flute", harm: { i: "horn", iv: "third" }, fill: "timp" },
-      otome:    { answer: "harp", harm: { i: "flute", iv: "third" }, fill: "harp" },
+      otome:    { answer: "glock", harm: { i: "flute", iv: "third" }, fill: "harp" },
       hunter:   { answer: "chip", harm: { i: "lead", iv: -12 }, fill: "snare" },
       daily:    { answer: "glock", harm: { i: "glock", iv: 12 }, fill: "brush" },
       dark:     { answer: "harpsichord", harm: { i: "violin", iv: "third" }, fill: "timp" },
@@ -2383,6 +2411,18 @@
             const pick = pool.length ? pool.sort((a, b) => Math.abs(a - prev) - Math.abs(b - prev))[0] : cand.includes(prev) ? prev : cand[0];
             counterPrev = Math.max(lo, Math.min(hi, pick)); counterPrevLead = lastLead;
             playEnsInst(L.i, counterPrev, t, (p.energy >= 1 ? barDur / 2 : barDur) * 0.98, (L.i === "cello" ? 0.05 : 0.035) * v, rev);
+            break;
+          }
+          case "pop": { // 팝 피아노 반주: 화음을 엇박으로 콕콕(오른손) — 느린 곡은 8분 분산화음
+            const up = voicing.map((m) => m + 12);
+            if (p.meter === "4/4" && p.energy >= 1) {
+              if (s === 0 || s === 6 || s === 10) up.slice(0, 3).forEach((m, i) => playEnsInst(L.i, m, t + i * 0.006, six * (s === 0 ? 5 : 3.5), (s === 0 ? 0.024 : 0.019) * v, rev, 0.15));
+              else if (s === 3 || s === 13) playEnsInst(L.i, up[(s + bar) % up.length] + 12, t, six * 2, 0.013 * v, rev, 0.3);
+              else if (sec === 2 && (s === 8 || s === 14)) up.slice(0, 3).forEach((m, i) => playEnsInst(L.i, m, t + i * 0.006, six * 2, 0.016 * v, rev, 0.15));
+            } else if (s % (p.meter === "12/8" ? 3 : 2) === 0) {
+              const k = s / (p.meter === "12/8" ? 3 : 2), ns = [voicing[0] - 12, voicing[1], voicing[2 % voicing.length], voicing[0] + 12, voicing[2 % voicing.length], voicing[1]];
+              playEnsInst(L.i, ns[k % ns.length], t, six * 5, (k === 0 ? 0.024 : 0.017) * v, rev, (k % 2 ? 0.2 : -0.1));
+            }
             break;
           }
           case "pad": { // 합창: 마디마다 화음을 길게 '아—'
@@ -2665,6 +2705,11 @@
           if (p.mood === "tense" || p.mood === "dark") { if (s === 6 || s === 14) bak(at, 0.03); if (s === 15 && hi % 2) buk(at, 0.08); }
           else if (s === 12 && hi % 2) jgChae(at, 0.04);
           if (s === 0 && hi % 8 === 0) jing(root + 36, at, 0.03);
+          break;
+        case "popSoft": // 상큼한 팝: 부드러운 킥, 손가락 스냅, 아주 작은 셰이커
+          if (s === 0 || s === 8 || (sec === 2 && s === 10)) kick(at, 0.08, 100);
+          if (s === 4 || s === 12) { noiseHit(t, 0.02, "bandpass", 1800, 0.05, 3); noiseHit(t + 0.004, 0.012, "highpass", 3000, 0.03); }
+          if (s % 2 === 0) noiseHit(t, s % 4 ? 0.003 : 0.0045, "bandpass", 5500, 0.035, 1.5);
           break;
         case "808": // 전자음: 길게 우는 808 킥, 하프타임 클랩, 하이햇 32분 롤
           if (s === 0 || s === 10 || (sec === 2 && s === 7)) kick808(at, s ? 0.14 : 0.18);
