@@ -233,11 +233,15 @@
     const ir = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+      // 실제 방처럼 울림이 갈수록 어두워지게(고음이 먼저 사라짐) → '쉬—' 하는 날카로운 꼬리가 남지 않음
+      let lp = 0;
+      for (let i = 0; i < len; i++) { const k = 0.35 + 0.6 * (i / len); lp = lp * k + (Math.random() * 2 - 1) * (1 - k); d[i] = lp * 2.2 * Math.pow(1 - i / len, 2.6); }
     }
     const conv = ctx.createConvolver(); conv.buffer = ir;
+    const revTone = ctx.createBiquadFilter(); revTone.type = "lowpass"; revTone.frequency.value = 4200; revTone.Q.value = 0.5;
+    const revLow = ctx.createBiquadFilter(); revLow.type = "highpass"; revLow.frequency.value = 180; // 저음 울림이 웅웅 쌓이지 않게
     wet = ctx.createGain(); wet.gain.value = cfg.reverb;
-    reverbIn = ctx.createGain(); reverbIn.connect(conv).connect(wet).connect(comp);
+    reverbIn = ctx.createGain(); reverbIn.connect(conv).connect(revTone).connect(revLow).connect(wet).connect(comp);
 
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0);
@@ -1659,28 +1663,28 @@
         leadBy: { calm: "flute", romance: "violin", sad: "violin", mystery: "flute", comedy: "flute", dark: "cello" },
         drums: { battle: "orch", tense: "orch", happy: "orchSoft", comedy: "orchSoft", lobby: "orchSoft", summon: "orchSoft", def: "none" }, rev: 0.55, mix: 1.8, mixBattle: 1 },
       otome: { // 실내악 무도회: 하프·피치카토·첼로·바이올린·플루트·첼레스타 (드럼 없음)
-        ens: [{ i: "harp", p: "roll" }, { i: "pizz", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "violin", p: "counter", sec: [2, 3], v: 0.8 }], ensBattle: [{ i: "harp", p: "roll", sec: [0, 1, 3] }], tempo: 0.96, pad: "none", padCut: 1700, arp: { def: "none", calm: "musicbox", sad: "musicbox", summon: "musicbox" }, comp: {}, lead: "flute", leadCenter: 79, bassInst: "cello", bassBattle: false, noAutoWaltz: true,
+        ens: [{ i: "harp", p: "roll" }, { i: "pizz", p: "offstab" }, { i: "violin", p: "counter", sec: [2, 3], v: 0.8 }], ensBattle: [{ i: "harp", p: "roll", sec: [0, 1, 3] }], tempo: 0.96, pad: "none", padCut: 1700, arp: { def: "none", calm: "musicbox", sad: "musicbox", summon: "musicbox" }, comp: {}, lead: "flute", leadCenter: 74, bassInst: "cello", bassBattle: false, noAutoWaltz: true,
         leadSec: { lobby: ["flute", "flute", "violin", "flute"], summon: ["flute", "flute", "violin", "flute"], romance: ["violin", "violin", "flute", "violin"] },
         leadBy: { sad: "violin", tense: "violin", mystery: "flute", dark: "violin" },
         drums: { battle: "orch", tense: "orch", def: "none" }, rev: 0.6, mix: 1.4, mixBattle: 2.2 },
       hunter: { // 전자음 게임 OST: 신스 패드·아르페지에이터·신스 베이스·808 드럼·신스 리드
-        ens: [{ i: "stab", p: "offstab", sec: [1, 2, 3] }, { i: "chip", p: "glock", sec: [1, 3] }], ensBattle: [{ i: "chip", p: "glock", sec: [1, 3] }], tempo: 1.06, pad: "synth", padCut: 2000, arp: { def: "synthpluck", mystery: "bell" }, comp: {}, lead: "lead", leadCenter: 76, bassInst: "synthbass", bassBattle: false,
+        ens: [{ i: "stab", p: "offstab", sec: [1, 2, 3] }], ensBattle: [], tempo: 1.06, pad: "synth", padCut: 2000, arp: { def: "synthpluck", mystery: "bell" }, comp: {}, lead: "lead", leadCenter: 72, bassInst: "synthbass", bassBattle: false,
         drums: { battle: "battle", tense: "808", happy: "808", lobby: "808", summon: "808", dark: "808", comedy: "808", mystery: "808", def: "none" }, rev: 0.35, sidechain: true, mix: 2.5, mixBattle: 1 },
       daily: { // 어쿠스틱: 통기타·우쿨렐레·콘트라베이스·글로켄슈필·휘파람·브러시 드럼
-        ens: [{ i: "guitar", p: "strum" }, { i: "ukulele", p: "offstab", sec: [1, 2, 3], v: 0.9 }, { i: "glock", p: "glock", sec: [1, 3], v: 0.9 }], ensBattle: [], tempo: 0.92, pad: "none", padCut: 1200, arp: { def: "none" }, comp: {}, lead: "whistle", leadCenter: 77, bassInst: "upright", bassBattle: false,
+        ens: [{ i: "guitar", p: "strum" }, { i: "ukulele", p: "offstab", sec: [1, 2, 3], v: 0.9 }], ensBattle: [], tempo: 0.92, pad: "none", padCut: 1200, arp: { def: "none" }, comp: {}, lead: "whistle", leadCenter: 72, bassInst: "upright", bassBattle: false,
         leadSec: { lobby: ["whistle", "whistle", "flute", "whistle"], happy: ["whistle", "whistle", "flute", "whistle"] },
         leadBy: { sad: "flute", romance: "flute", mystery: "flute" },
         drums: { def: "brush", sad: "none", mystery: "none", dark: "none", calm: "none", battle: "battle" }, rev: 0.35, swing: 0.16, mix: 2.2, mixBattle: 1 },
       dark: { // 고딕 호러: 파이프오르간·뮤직박스·현의 트레몰로·하프시코드·합창
-        ens: [{ i: "cello", p: "trem", sec: [1, 2, 3] }, { i: "harpsichord", p: "roll", sec: [0, 1, 3], v: 0.7 }, { i: "choirpad", p: "pad", sec: [2] }], ensBattle: [{ i: "cello", p: "trem" }], tempo: 0.9, pad: "organ", padCut: 1600, arp: { def: "none" }, comp: {}, lead: "musicbox", leadCenter: 76, bassInst: "organ", bassBattle: false, noAutoWaltz: true,
+        ens: [{ i: "cello", p: "trem", sec: [1, 2, 3] }, { i: "harpsichord", p: "roll", sec: [0, 1, 3], v: 0.7 }, { i: "choirpad", p: "pad", sec: [2] }], ensBattle: [{ i: "cello", p: "trem" }], tempo: 0.9, pad: "organ", padCut: 1600, arp: { def: "none" }, comp: {}, lead: "musicbox", leadCenter: 72, bassInst: "organ", bassBattle: false, noAutoWaltz: true,
         leadSec: { lobby: ["musicbox", "musicbox", "choir", "musicbox"], summon: ["musicbox", "musicbox", "choir", "musicbox"] },
         leadBy: { sad: "violin", romance: "violin", tense: "choir", dark: "choir", calm: "choir", battle: "choir", glitch: "musicbox" },
         drums: { battle: "battle", tense: "pulse", def: "none" }, rev: 0.75, mix: 2.1, mixBattle: 1 },
-      oriental: { ens: [{ i: "gayageum", p: "gaya" }, { i: "gayageum", p: "gliss" }, { i: "haegeum", p: "counter", sec: [2, 3] }], ensBattle: [{ i: "haegeum", p: "counter", sec: [1, 2, 3], v: 0.8 }], tempo: 1, pad: "none", padCut: 700, arp: { def: "none" }, comp: {}, lead: "daegeum", leadCenter: 77, bassInst: "geomungo", droneInst: "ajaeng", mix: 2, mixBattle: 1.5,
+      oriental: { ens: [{ i: "gayageum", p: "gaya" }, { i: "gayageum", p: "gliss" }, { i: "haegeum", p: "counter", sec: [2, 3] }], ensBattle: [{ i: "haegeum", p: "counter", sec: [1, 2, 3], v: 0.8 }], tempo: 1, pad: "none", padCut: 700, arp: { def: "none" }, comp: {}, lead: "daegeum", leadCenter: 74, bassInst: "geomungo", droneInst: "ajaeng", mix: 2, mixBattle: 1.5,
         leadSec: { lobby: ["daegeum", "danso", "piri", "daegeum"], summon: ["daegeum", "danso", "piri", "daegeum"] },
         leadBy: { sad: "haegeum", dark: "haegeum", romance: "danso", calm: "danso", happy: "danso", comedy: "piri", tense: "piri", battle: "piri", mystery: "daegeum" },
         drums: { battle: "hwimori", tense: "dagu", lobby: "jangdan", summon: "jangdan", happy: "janggu", comedy: "janggu", dark: "dagu", mystery: "dagu", def: "jingOnly" }, rev: 0.6, drone: true },
-      idol: { ens: [{ i: "piano", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], ensBattle: [{ i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 2300, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
+      idol: { ens: [{ i: "piano", p: "offstab" }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], ensBattle: [{ i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 2300, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 72,
         drums: { def: "kpop", calm: "rnb", romance: "rnb", sad: "rnb", mystery: "rnb", dark: "pulse" }, rev: 0.4, sidechain: true,
         bpm: { lobby: 118, summon: 120, battle: 128, calm: 88, happy: 124, comedy: 122, romance: 80, sad: 74, tense: 120, mystery: 92, dark: 96, glitch: 110 },
         padBy: { calm: "warm", romance: "warm", sad: "warm", mystery: "warm" }, leadBy: { calm: "whistle", romance: "whistle", sad: "whistle", mystery: "whistle" } },
@@ -1870,7 +1874,7 @@
       a3 = oc.map(([st, len], i) => ({ st, len, m: nearTone(i === oc.length - 1 ? [t3[1] ?? t3[0], t3[2] ?? t3[0]] : t3, a2[a2.length - 1].m) })); // 열린 끝(질문)
       a2v = a2.map((n, i) => (i % 2 ? { ...n, m: clamp(scaleStep(n.m, 1)) } : { ...n }));
       const bc = rpick(r, poolB), bcont = contourFor(bc);
-      b = Bc.map((ch, i) => render(bc, i % 2 ? bcont.map((x) => -x) : bcont, ch, center + 4 + (i === 2 ? 2 : 0)));
+      b = Bc.map((ch, i) => render(bc, i % 2 ? bcont.map((x) => -x) : bcont, ch, center + 3 + (i === 2 ? 1 : 0)));
       b[3] = [{ st: 0, len: Math.round(spb * 0.6), m: nearTone(strongTones(Bc[3]), center + 5) }];
       a2b = a2.map((n, i) => (i === a2.length - 1 ? { ...n, m: clamp(scaleStep(n.m, -1)) } : { ...n }));
       const cc = CAD_CLOSE[spb];
@@ -1931,15 +1935,16 @@
     function ensureMusicBus() {
       if (musicIn) return;
       // 반짝이는 고음을 살짝 눌러 귀가 편하게
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 9000; lp.Q.value = 0.5;
-      const shelf = ctx.createBiquadFilter(); shelf.type = "highshelf"; shelf.frequency.value = 4500; shelf.gain.value = -3;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7000; lp.Q.value = 0.5;
+      const shelf = ctx.createBiquadFilter(); shelf.type = "highshelf"; shelf.frequency.value = 2600; shelf.gain.value = -6; // 귀가 아픈 고음역(2~6kHz)을 눌러 부드럽게
       musicGate = ctx.createGain();
       musicIn = ctx.createGain();
       mixGain = ctx.createGain(); // 테마마다 전체 크기 맞춤(악기 구성이 달라 크기가 다름)
       // 합주를 하나로 묶어 주는 버스 압축(악기들이 따로 놀지 않고 한 덩어리로 들리게)
-      const glue = ctx.createDynamicsCompressor(); glue.threshold.value = -20; glue.knee.value = 8; glue.ratio.value = 2.5; glue.attack.value = 0.02; glue.release.value = 0.25;
-      const makeup = ctx.createGain(); makeup.gain.value = 0.62;
-      musicIn.connect(mixGain).connect(glue).connect(makeup).connect(shelf).connect(lp).connect(musicGate).connect(bgmBus);
+      const glue = ctx.createDynamicsCompressor(); glue.threshold.value = -16; glue.knee.value = 12; glue.ratio.value = 1.6; glue.attack.value = 0.03; glue.release.value = 0.3; // 아주 살짝만(세게 누르면 숨이 막혀 귀가 피곤함)
+      const makeup = ctx.createGain(); makeup.gain.value = 0.75;
+      const presence = ctx.createBiquadFilter(); presence.type = "peaking"; presence.frequency.value = 3200; presence.Q.value = 0.9; presence.gain.value = -3;
+      musicIn.connect(mixGain).connect(glue).connect(makeup).connect(shelf).connect(presence).connect(lp).connect(musicGate).connect(bgmBus);
       padBus = ctx.createGain(); padBus.connect(musicIn);
     }
     const revSend = (node, amt) => { if (amt > 0 && !cfg.lowPower) { const s = ctx.createGain(); s.gain.value = amt; node.connect(s).connect(reverbIn); } };
@@ -2041,7 +2046,7 @@
       if (inst === "erhu") return playGugak("haegeum", m, prevM, t, dur, vol, rev, pan);
       if (inst === "violin" || inst === "cello") return playBowed(inst, inst === "cello" ? m - 12 : m, t, dur, vol * 1.25, rev, pan);
       if (inst === "musicbox") return playInst("musicbox", f / 2, t, Math.max(dur, 1), vol * 1.15, musicIn, rev);
-      if (inst === "glock") return fmVoice(f * 2, t, Math.max(dur, 1), vol * 0.9, 2.76, 0.5, 1.6, musicIn, rev + 0.15);
+      if (inst === "glock") return fmVoice(f, t, Math.max(dur, 1), vol * 0.85, 2.76, 0.4, 1.4, musicIn, rev + 0.15);
       if (inst === "organ") return playOrgan(m, t, dur, vol * 0.9, rev);
       if (GUGAK.has(inst)) return playGugak(inst, m, prevM, t, dur, vol * (inst === "piri" ? 0.85 : 1), rev, pan);
       const g = ctx.createGain();
@@ -2061,7 +2066,7 @@
       lfo.connect(lg).connect(o.frequency);
       let out = o;
       if (inst === "lead" || inst === "horn") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = inst === "horn" ? 1300 : 2600; o.connect(lp); out = lp; }
-      if (inst === "trumpet") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 1.2; lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(3400, t + 0.05); lp.frequency.exponentialRampToValueAtTime(2200, t + 0.3); o.connect(lp); out = lp; }
+      if (inst === "trumpet") { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 1.2; lp.frequency.setValueAtTime(700, t); lp.frequency.exponentialRampToValueAtTime(2600, t + 0.05); lp.frequency.exponentialRampToValueAtTime(1700, t + 0.3); o.connect(lp); out = lp; }
       if (inst === "choir" || inst === "vocal") { // 모음 소리(아·오): 포먼트 두 개
         const mix = ctx.createGain(); const fm = inst === "choir" ? [[570, 0.9], [840, 0.6]] : [[730, 1], [1090, 0.7]];
         fm.forEach(([ff, gg]) => { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = ff; bp.Q.value = 6; const bg = ctx.createGain(); bg.gain.value = gg * 2.2; o.connect(bp).connect(bg).connect(mix); });
@@ -2073,7 +2078,7 @@
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
       if (breathy) { // 숨소리
         const n = ctx.createBufferSource(); n.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f * 2; bp.Q.value = 2.5;
-        const ng = ctx.createGain(); adsr(ng, t, vol * (inst === "bamboo" ? 0.35 : 0.18), 0.04, 0.2, 0.5, dur * 0.9, 0.15);
+        const ng = ctx.createGain(); adsr(ng, t, vol * (inst === "bamboo" ? 0.2 : 0.08), 0.04, 0.2, 0.5, dur * 0.9, 0.15);
         n.connect(bp).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
       }
     }
@@ -2082,14 +2087,14 @@
      *   악기마다 음 두 개(낮은 음·높은 음)만 미리 만들어 두고 재생 속도로 음높이를 바꿈 → 메모리 적게 씀
      *  활로 켜는 현(첼로·바이올린·해금), 신스 스탭, 피아노, 첼레스타 */
     const KS_DEF = {
-      guitar:      { len: 2.2, d: 0.9965, w: 0.5, soft: 0.55, pos: 0.18, gain: 1 },
+      guitar:      { len: 2.2, d: 0.9962, w: 0.45, soft: 0.75, pos: 0.2, gain: 0.95 }, // 나일론 줄처럼 둥글게
       harp:        { len: 2.6, d: 0.9978, w: 0.5, soft: 0.7, pos: 0.3, gain: 0.9 },
       pizz:        { len: 0.7, d: 0.985, w: 0.5, soft: 0.6, pos: 0.25, gain: 1.2 },
       harpsichord: { len: 1.6, d: 0.997, w: 0.72, soft: 0.1, pos: 0.08, gain: 0.8 },
       dulcimer:    { len: 2.2, d: 0.9972, w: 0.62, soft: 0.25, pos: 0.12, gain: 0.85 },
       pipa:        { len: 0.6, d: 0.991, w: 0.6, soft: 0.2, pos: 0.1, gain: 1 },
       guzheng:     { len: 2.4, d: 0.998, w: 0.6, soft: 0.3, pos: 0.15, gain: 0.9 },
-      ukulele:     { len: 1.1, d: 0.993, w: 0.5, soft: 0.5, pos: 0.2, gain: 1 },
+      ukulele:     { len: 1.1, d: 0.992, w: 0.45, soft: 0.72, pos: 0.22, gain: 0.85 },
       upright:     { len: 1.4, d: 0.992, w: 0.42, soft: 0.75, pos: 0.3, gain: 1.7 }, // 콘트라베이스 피치카토
       gayageum:    { len: 2.0, d: 0.9966, w: 0.5, soft: 0.6, pos: 0.22, gain: 1.05 },  // 명주실: 둥글고 따뜻한 뜯는 소리
       geomungo:    { len: 1.5, d: 0.9945, w: 0.55, soft: 0.45, pos: 0.1, gain: 1.3 },  // 술대로 내려치는 낮은 현
@@ -2134,13 +2139,13 @@
       lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * (inst === "erhu" ? 0.012 : 0.006), t + Math.min(0.5, dur * 0.5)); lfo.connect(lg).connect(o.frequency);
       const body = ctx.createBiquadFilter();
       if (inst === "erhu") { body.type = "bandpass"; body.frequency.value = 1300; body.Q.value = 1.6; } // 콧소리 같은 해금
-      else { body.type = "lowpass"; body.frequency.value = inst === "cello" ? 1500 : 2800; body.Q.value = 0.9; }
+      else { body.type = "lowpass"; body.frequency.value = inst === "cello" ? 1300 : 2100; body.Q.value = 0.7; }
       const air = ctx.createBiquadFilter(); air.type = "peaking"; air.frequency.value = inst === "cello" ? 250 : 900; air.gain.value = 4; air.Q.value = 1;
       o.connect(body).connect(air).connect(g).connect(exprOut(t, dur, pan)); revSend(g, rev + 0.15);
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
       // 활이 줄을 긁는 소리
       const n = ctx.createBufferSource(); n.buffer = noiseBuf; const nb = ctx.createBiquadFilter(); nb.type = "bandpass"; nb.frequency.value = inst === "cello" ? 1200 : 3000; nb.Q.value = 1;
-      const ng = ctx.createGain(); adsr(ng, t, vol * 0.12, a, 0.3, 0.5, dur * 0.9, 0.2); n.connect(nb).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
+      const ng = ctx.createGain(); adsr(ng, t, vol * 0.05, a, 0.3, 0.5, dur * 0.9, 0.2); n.connect(nb).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
     }
     // 파이프오르간 음색(배음을 겹친 파형)
     let organPW = null;
@@ -2176,7 +2181,7 @@
       const mix = ctx.createGain(); let lv = 1;
       if (inst === "piri") { // 겹서: 콧소리 포먼트 세 개 + 살짝 찌그러짐
         const sh = ctx.createWaveShaper(); sh.curve = curve(3); o.connect(sh);
-        [[750, 2, 1], [1650, 3, 0.8], [2900, 4, 0.45]].forEach(([ff, q, gg]) => { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = ff; bp.Q.value = q; const bg = ctx.createGain(); bg.gain.value = gg * 2; sh.connect(bp).connect(bg).connect(mix); });
+        [[750, 2, 1], [1650, 3, 0.7], [2900, 4, 0.22]].forEach(([ff, q, gg]) => { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = ff; bp.Q.value = q; const bg = ctx.createGain(); bg.gain.value = gg * 2; sh.connect(bp).connect(bg).connect(mix); });
         lv = 0.8;
       } else if (inst === "haegeum" || inst === "ajaeng") { // 해금: 1.1kHz 콧소리 / 아쟁: 낮고 거칠게
         const bp = ctx.createBiquadFilter(); bp.type = inst === "haegeum" ? "bandpass" : "lowpass"; bp.frequency.value = inst === "haegeum" ? 1150 : 1100; bp.Q.value = inst === "haegeum" ? 1.4 : 0.8;
@@ -2196,7 +2201,7 @@
       // 숨소리(관악) / 활 긁는 소리(찰현)
       const n = ctx.createBufferSource(); n.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
       bp.frequency.value = wind ? Math.min(6000, f * 2.2) : inst === "ajaeng" ? 900 : 3200; bp.Q.value = wind ? 2 : 1.2;
-      const ng = ctx.createGain(); adsr(ng, t, vol * (inst === "daegeum" ? 0.4 : inst === "danso" ? 0.32 : inst === "piri" ? 0.1 : inst === "ajaeng" ? 0.35 : 0.16), 0.03, 0.25, 0.45, dur * 0.9, 0.15);
+      const ng = ctx.createGain(); adsr(ng, t, vol * (inst === "daegeum" ? 0.24 : inst === "danso" ? 0.16 : inst === "piri" ? 0.06 : inst === "ajaeng" ? 0.2 : 0.09), 0.03, 0.25, 0.45, dur * 0.9, 0.15);
       n.connect(bp).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
     }
     // 국악 타악기: 장구(덩·쿵·덕·기덕), 북, 징, 꽹과리, 박
@@ -2216,8 +2221,8 @@
       if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev, pan);
       if (inst === "flute" || inst === "horn" || inst === "trumpet" || inst === "lead" || inst === "whistle" || inst === "vocal" || inst === "musicbox" || inst === "glock") return playLead(inst, m, null, t, dur, vol, rev, pan);
       const f = mtof(m);
-      if (inst === "celesta") return fmVoice(f, t, dur, vol, 4, 0.7, 1.1, musicIn, rev + 0.2);
-      if (inst === "glock") return fmVoice(f * 2, t, dur, vol * 0.8, 2.76, 0.5, 1.6, musicIn, rev + 0.15); // 글로켄슈필: 맑은 쇠막대
+      if (inst === "celesta") return fmVoice(f, t, dur, vol * 0.85, 4, 0.5, 1.1, musicIn, rev + 0.2);
+      if (inst === "glock") return fmVoice(f, t, dur, vol * 0.75, 2.76, 0.4, 1.4, musicIn, rev + 0.15); // 글로켄슈필: 맑은 쇠막대
       if (inst === "organ") return playOrgan(m, t, dur, vol, rev);
       if (inst === "choirpad") return playLead("choir", m, null, t, dur, vol, rev + 0.2);
       if (inst === "dguitar") return playString("guitar", m, t, dur, vol * 1.4, rev * 0.4, pan, distIn()); // 일렉 기타(찌그러뜨림)
@@ -2546,7 +2551,7 @@
       if (li !== "none" && !cfg.lowPower && bar >= 2) { // 반주가 두 마디 깔린 뒤 노래가 들어옴
         const mbar = p.melody[hi];
         for (const n of mbar) if (n.st === s) {
-          const lv = (p.theme === "dark" ? 0.032 : li === "vocal" ? 0.05 : 0.04) * SEC_DYN[sec] * (n.st % (bs * 2) === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
+          const lv = (p.theme === "dark" ? 0.028 : li === "vocal" ? 0.042 : 0.033) // 멜로디가 반주를 덮지 않게 * SEC_DYN[sec] * (n.st % (bs * 2) === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
           const tt = t + (n.st ? (Math.random() - 0.5) * 0.012 : 0), dur = n.len * six * (n.stac ? 0.55 : 1);
           if (n.app) { // 꾸밈음: 위 음에서 시작해 화음 음으로 내려앉음
             const d1 = Math.min(dur * 0.4, beat * 0.75);
@@ -2562,12 +2567,12 @@
           // 후렴: 다른 악기가 3도 아래(또는 옥타브)로 같이 노래
           if (sec === 2 && A.harm && A.harm.i !== li) for (const n of mbar) if (n.st === s) {
             const hm = A.harm.iv === "third" ? scaleBelow(p, n.m, 2) : n.m + A.harm.iv;
-            playEnsInst(A.harm.i, hm, t + 0.008, n.len * six * (n.stac ? 0.55 : 0.95), 0.024, p.rev, 0.32);
+            playEnsInst(A.harm.i, hm, t + 0.008, n.len * six * (n.stac ? 0.55 : 0.95), 0.017, p.rev, 0.32);
           }
           // 대답: 멜로디가 길게 끄는 사이에 짧은 가락으로 응답(A′·A″)
           if ((sec === 1 || sec === 3) && A.answer) for (const n of mbar) if (n.len >= bs * 3 && s === n.st + bs * 2 && n.st + n.len <= spb + 1) {
             const src = p.melody[(hi + 15) % 16].slice(-3).map((x) => x.m), up = /harp|glock|celesta|chip|musicbox|harpsichord/.test(A.answer) ? 12 : 0;
-            src.forEach((m, i) => playEnsInst(A.answer, m + up, t + i * six * (bs === 3 ? 1 : 1.5), six * 2.5, 0.022, p.rev + 0.1, -0.35));
+            src.forEach((m, i) => playEnsInst(A.answer, m + up, t + i * six * (bs === 3 ? 1 : 1.5), six * 2.5, 0.015, p.rev + 0.1, -0.35));
           }
         }
       }
@@ -2582,7 +2587,7 @@
         if (p.theme === "otome" && bar % 2 === 0) fmVoice(mtof(voicing[voicing.length - 1] + 24), at + beat * 2, 1, 0.012, 7.01, 0.6, 1.6, musicIn, 0.8);
         if (p.theme === "oriental" && /calm|lobby|romance|mystery|sad|happy/.test(p.mood) && bar % 2 === 1) for (let i = 0; i < 3; i++) fmVoice(mtof(voicing[i % voicing.length] + 36), at + beat * (2 + i * 0.35), 1.6, 0.01, 3.0, 0.8, 1.8, musicIn, 0.9); // 처마 끝 풍경
         if (p.theme === "dark" && !intro && /calm|mystery|dark|sad/.test(p.mood)) { lowDrum(at, 0.09, 60); lowDrum(at + beat * 0.42, 0.06, 58); } // 심장 박동
-        if (p.theme === "daily") for (let i = 0; i < 6; i++) if (Math.random() < 0.5) noiseHit(at + Math.random() * barDur, 0.008 + Math.random() * 0.012, "highpass", 2500, 0.006); // 레코드 잡음
+
       }
       if (p.theme === "idol" && p.drums === "kpop" && !intro) {
         if (hi === 0 && s === 0) crash(at, 0.02); // 노래 처음·후렴(B) 들어갈 때만
