@@ -1663,9 +1663,10 @@
         drums: { def: "lofi", sad: "none", mystery: "none", dark: "none", tense: "pulse", battle: "battle" }, rev: 0.4, swing: 0.16 },
       dark: { ens: [{ i: "harpsichord", p: "roll", v: 0.8 }, { i: "cello", p: "counter", sec: [1, 2, 3] }], ensBattle: [], tempo: 0.9, pad: "synth", padCut: 800, arp: { def: "bell", battle: "synthpluck", tense: "synthpluck" }, comp: {}, lead: "choir", leadCenter: 72,
         drums: { battle: "battle", tense: "pulse", def: "none" }, rev: 0.7 },
-      oriental: { ens: [{ i: "piano", p: "broken", sec: [0, 1, 2, 3] }, { i: "guzheng", p: "gliss" }, { i: "erhu", p: "counter", sec: [2, 3] }, { i: "pipa", p: "tremolo", sec: [2], v: 0.7 }], ensBattle: [{ i: "pipa", p: "tremolo", sec: [2], v: 0.8 }, { i: "erhu", p: "counter", sec: [2, 3], v: 0.8 }], tempo: 1, pad: "strings", padCut: 1700, arp: { def: "zither", calm: "none", romance: "none", sad: "none", summon: "zither", battle: "zither" }, comp: {}, lead: "bamboo", leadCenter: 79,
-        leadBy: { sad: "erhu", romance: "erhu", dark: "erhu" },
-        drums: { battle: "wuxia", tense: "dagu", lobby: "swell", summon: "swell", happy: "janggu", comedy: "janggu", dark: "dagu", def: "none" }, rev: 0.65 },
+      oriental: { ens: [{ i: "gayageum", p: "gaya" }, { i: "gayageum", p: "gliss" }, { i: "haegeum", p: "counter", sec: [2, 3] }], ensBattle: [{ i: "haegeum", p: "counter", sec: [1, 2, 3], v: 0.8 }], tempo: 1, pad: "none", padCut: 700, arp: { def: "none" }, comp: {}, lead: "daegeum", leadCenter: 77, bassInst: "geomungo", droneInst: "ajaeng", mix: 2, mixBattle: 1.5,
+        leadSec: { lobby: ["daegeum", "danso", "piri", "daegeum"], summon: ["daegeum", "danso", "piri", "daegeum"] },
+        leadBy: { sad: "haegeum", dark: "haegeum", romance: "danso", calm: "danso", happy: "danso", comedy: "piri", tense: "piri", battle: "piri", mystery: "daegeum" },
+        drums: { battle: "hwimori", tense: "dagu", lobby: "jangdan", summon: "jangdan", happy: "janggu", comedy: "janggu", dark: "dagu", mystery: "dagu", def: "jingOnly" }, rev: 0.6, drone: true },
       idol: { ens: [{ i: "piano", p: "offstab" }, { i: "celesta", p: "glock", sec: [1, 3] }, { i: "stab", p: "offstab", sec: [2], v: 0.6 }], ensBattle: [{ i: "stab", p: "offstab", sec: [2], v: 0.6 }], tempo: 1, pad: "supersaw", padCut: 2300, arp: { def: "synthpluck", calm: "epiano", romance: "epiano", sad: "epiano", mystery: "epiano" }, comp: { calm: true, romance: true, sad: true, mystery: true }, lead: "vocal", leadCenter: 76,
         drums: { def: "kpop", calm: "rnb", romance: "rnb", sad: "rnb", mystery: "rnb", dark: "pulse" }, rev: 0.4, sidechain: true,
         bpm: { lobby: 118, summon: 120, battle: 128, calm: 88, happy: 124, comedy: 122, romance: 80, sad: 74, tense: 120, mystery: 92, dark: 96, glitch: 110 },
@@ -1743,15 +1744,15 @@
         tense:  { key: 50, mode: "dorian", meter: "4/4", bpm: 100, prog: "0:m7 5:7 0:m7 5:7", progB: "3:M7 5:7 10:M 7:m7", mel: "jazzy" },
         battle: { key: 52, mode: "minor", meter: "4/4", bpm: 148, prog: "0:5 8:5 10:5 0:5", progB: "5:5 3:5 10:5 7:5", mel: "battle" },
       },
-      oriental: { // 서정적인 동양풍 오케스트라(무협·사극 OST): 화음은 서양식 단조, 멜로디는 5음 음계(대금·해금), 현악·피아노·고쟁
-        bright: { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 72, prog: "0:m 8:add9 3:M 10:M", progB: "5:m7 0:m 8:M7 7:sus4", mel: "lyric" },
-        summon: { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 76, prog: "8:M7 10:M 0:m 0:m", progB: "5:m7 10:M 3:M 7:sus4", mel: "lyric" },
+      oriental: { // 국악 관현악(사극·무협 OST): 계면조 느낌의 5음 음계, 가야금·거문고·해금·아쟁·대금·단소·피리, 장구·북·징·박
+        bright: { key: 57, mode: "yu", meter: "4/4", bpm: 70, prog: "0:m 3:M 10:sus2 0:m", progB: "5:sus2 3:M 10:sus2 7:q", mel: "lyric" },
+        summon: { key: 57, mode: "yu", meter: "4/4", bpm: 74, prog: "3:M 10:sus2 0:m 0:m", progB: "5:sus2 3:M 7:q 0:m", mel: "lyric" },
         happy:  { key: 55, mode: "penta", meter: "12/8", bpm: 62, prog: "0:sus2 9:q 7:sus4 0:sus2", progB: "4:q 2:sus4 9:q 7:sus2", mel: "penta" },
         comedy: { key: 55, mode: "penta", meter: "12/8", bpm: 66, prog: "0:sus2 9:q 7:sus4 0:sus2", progB: "4:q 2:sus4 9:q 7:sus2", mel: "penta" },
-        soft:   { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 64, prog: "8:M7 10:M 0:m 0:m", progB: "5:m7 10:M 3:M 7:sus4", mel: "lyric" },
-        sad:    { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 58, prog: "0:m 5:m 10:M 3:M", progB: "8:M7 10:M 7:sus4 7:M", mel: "pentaSlow" },
-        tense:  { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 88, prog: "0:5 0:5 8:5 10:5", progB: "5:5 3:5 10:5 7:5", mel: "ostinato" },
-        battle: { key: 57, mode: "minor", melMode: "yu", meter: "4/4", bpm: 148, prog: "0:m 8:M 10:M 0:m", progB: "5:m 8:M 10:M 7:M", mel: "wuxiaFight" },
+        soft:   { key: 57, mode: "yu", meter: "4/4", bpm: 62, prog: "3:M 10:sus2 0:m 0:m", progB: "5:sus2 3:M 7:q 0:m", mel: "lyric" },
+        sad:    { key: 57, mode: "yu", meter: "4/4", bpm: 56, prog: "0:m 5:sus2 10:sus2 0:m", progB: "3:M 10:sus2 7:q 0:m", mel: "pentaSlow" },
+        tense:  { key: 57, mode: "yu", meter: "4/4", bpm: 88, prog: "0:5 0:5 10:5 0:5", progB: "5:5 3:5 10:5 7:q", mel: "ostinato" },
+        battle: { key: 57, mode: "yu", meter: "4/4", bpm: 146, prog: "0:m 10:sus2 3:M 0:m", progB: "5:sus2 3:M 10:sus2 7:q", mel: "wuxiaFight" },
       },
       idol: {
         bright: { key: 56, mode: "major", meter: "4/4", bpm: 120, prog: "9:m7 5:M9 0:add9 7:sus4", progB: "5:M7 7:7 4:m7 9:m7", mel: "hook" },
@@ -1891,7 +1892,9 @@
         lead: (st.leadBy && st.leadBy[mood]) || st.lead, leadCenter: st.leadCenter,
         drums: (st.drums[mood] !== undefined ? st.drums[mood] : st.drums.def) || "none",
         rev: st.rev, swing: song.meter === "4/4" && (st.swing || song.mel === "jazzy" || song.mel === "lazy") ? (st.swing || 0.14) : 0,
-        sidechain: !!st.sidechain, drone: !!st.drone,
+        sidechain: !!st.sidechain, drone: !!st.drone && mood !== "battle" && mood !== "comedy" && mood !== "happy", droneInst: st.droneInst, bassInst: st.bassInst,
+        leadSec: cfg.leadInst === "auto" && st.leadSec ? st.leadSec[mood] || null : null,
+        mix: (mood === "battle" ? st.mixBattle : st.mix) || 1,
         ens: mood === "glitch" ? null : mood === "battle" && st.ensBattle !== undefined ? st.ensBattle : st.ens,
         battle: mood === "battle" ? BATTLE_ARR[th] || null : null,
       };
@@ -1910,7 +1913,7 @@
     }
 
     /* ---------- 악기 ---------- */
-    let musicIn = null, padBus = null, musicGate = null, activePads = [];
+    let musicIn = null, padBus = null, musicGate = null, activePads = [], mixGain = null;
     function ensureMusicBus() {
       if (musicIn) return;
       // 반짝이는 고음을 살짝 눌러 귀가 편하게
@@ -1918,7 +1921,8 @@
       const shelf = ctx.createBiquadFilter(); shelf.type = "highshelf"; shelf.frequency.value = 4500; shelf.gain.value = -3;
       musicGate = ctx.createGain();
       musicIn = ctx.createGain();
-      musicIn.connect(shelf).connect(lp).connect(musicGate).connect(bgmBus);
+      mixGain = ctx.createGain(); // 테마마다 전체 크기 맞춤(악기 구성이 달라 크기가 다름)
+      musicIn.connect(mixGain).connect(shelf).connect(lp).connect(musicGate).connect(bgmBus);
       padBus = ctx.createGain(); padBus.connect(musicIn);
     }
     const revSend = (node, amt) => { if (amt > 0 && !cfg.lowPower) { const s = ctx.createGain(); s.gain.value = amt; node.connect(s).connect(reverbIn); } };
@@ -1987,7 +1991,7 @@
       const fade = Math.min(1.2, dur * 0.35);
       // 슈퍼쏘: 톱니파를 너무 많이·넓게 겹치면 서로 맞부딪혀 '지지직' 잡음처럼 들려서 3겹·좁게
       const voices = kind === "supersaw" ? (cfg.lowPower ? [-8, 8] : [-13, 0, 13]) : cfg.lowPower ? [0] : [-7, 7];
-      const wave = kind === "supersaw" || kind === "synth" ? "sawtooth" : kind === "strings" ? "sawtooth" : kind === "warm" ? "triangle" : ["sine", "triangle", "square", "sawtooth"].includes(kind) ? kind : "triangle";
+      const wave = kind === "supersaw" || kind === "synth" || kind === "ajaeng" ? "sawtooth" : kind === "strings" ? "sawtooth" : kind === "warm" ? "triangle" : ["sine", "triangle", "square", "sawtooth"].includes(kind) ? kind : "triangle";
       const per = (kind === "supersaw" ? 0.009 : wave === "sawtooth" ? 0.016 : wave === "square" ? 0.013 : 0.026) / Math.sqrt(voices.length / 2);
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = cut * (kind === "strings" ? 1.1 : 1); lp.Q.value = 0.6;
       const g = ctx.createGain();
@@ -1998,7 +2002,7 @@
       activePads = activePads.filter((x) => x.stop > ctx.currentTime); activePads.push({ g, stop });
       notes.forEach((m, i) => voices.forEach((det) => {
         const o = ctx.createOscillator(); o.type = wave; o.frequency.value = mtof(m); o.detune.value = det + (kind === "strings" ? Math.sin(i + det) * 4 : 0);
-        if (kind === "strings") { const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 4.8 + i * 0.3; vg.gain.value = 5; v.connect(vg).connect(o.detune); v.start(t); v.stop(stop); }
+        if (kind === "strings" || kind === "ajaeng") { const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = kind === "ajaeng" ? 4.2 + i * 0.4 : 4.8 + i * 0.3; vg.gain.value = kind === "ajaeng" ? 9 : 5; v.connect(vg).connect(o.detune); v.start(t); v.stop(stop); }
         const og = ctx.createGain(); og.gain.value = per;
         if (ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = Math.max(-0.7, Math.min(0.7, (i - 1.5) * 0.3 + det / 60)); o.connect(og).connect(pn).connect(lp); } else o.connect(og).connect(lp);
         o.start(t); o.stop(stop);
@@ -2010,7 +2014,8 @@
       if (inst === "none") return;
       if (inst === "bell") return fmVoice(f, t, dur, vol * 0.8, 2.76, 1.4, Math.max(1.4, dur), musicIn, rev + 0.2);
       if (inst === "epiano") return playInst("epiano", f, t, dur, vol, musicIn, rev);
-      if (inst === "erhu") return playBowed("erhu", m, t, dur, vol * 1.15, rev); // 해금·얼후: 콧소리 섞인 활 소리
+      if (inst === "erhu") return playGugak("haegeum", m, prevM, t, dur, vol, rev);
+      if (GUGAK.has(inst)) return playGugak(inst, m, prevM, t, dur, vol * (inst === "piri" ? 0.85 : 1), rev);
       const g = ctx.createGain();
       const breathy = inst === "flute" || inst === "bamboo" || inst === "whistle";
       const a = inst === "horn" || inst === "choir" ? 0.09 : inst === "vocal" ? 0.012 : 0.05;
@@ -2055,6 +2060,8 @@
       dulcimer:    { len: 2.2, d: 0.9972, w: 0.62, soft: 0.25, pos: 0.12, gain: 0.85 },
       pipa:        { len: 0.6, d: 0.991, w: 0.6, soft: 0.2, pos: 0.1, gain: 1 },
       guzheng:     { len: 2.4, d: 0.998, w: 0.6, soft: 0.3, pos: 0.15, gain: 0.9 },
+      gayageum:    { len: 2.0, d: 0.9966, w: 0.5, soft: 0.6, pos: 0.22, gain: 1.05 },  // 명주실: 둥글고 따뜻한 뜯는 소리
+      geomungo:    { len: 1.5, d: 0.9945, w: 0.55, soft: 0.45, pos: 0.1, gain: 1.3 },  // 술대로 내려치는 낮은 현
     };
     const ksCache = new Map();
     function ksBuffer(inst, base) {
@@ -2070,9 +2077,15 @@
       for (let i = 0; i < len; i++) y[i] *= k * (i > len - fo ? (len - i) / fo : 1);
       const out = { buf, f: sr / N }; ksCache.set(key, out); return out;
     }
-    function playString(inst, m, t, dur, vol, rev, pan = 0, out = null) {
+    function playString(inst, m, t, dur, vol, rev, pan = 0, out = null, opts = {}) {
       const base = m < 57 ? 45 : 69, kb = ksBuffer(inst, base);
-      const src = ctx.createBufferSource(); src.buffer = kb.buf; src.playbackRate.value = mtof(m) / kb.f;
+      const src = ctx.createBufferSource(); src.buffer = kb.buf; const rate = mtof(m) / kb.f; src.playbackRate.setValueAtTime(rate, t);
+      if (opts.nong && dur > 0.3) { // 농현: 줄을 눌렀다 놓으며 떨기
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 5 + Math.random();
+        lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(rate * 0.014 * opts.nong, t + Math.min(0.45, dur * 0.5));
+        lfo.connect(lg).connect(src.playbackRate); lfo.start(t + 0.12); lfo.stop(t + dur + 0.5);
+      }
+      if (opts.bend) src.playbackRate.setTargetAtTime(rate * Math.pow(2, opts.bend / 12), t + Math.max(0.15, dur * 0.45), 0.08); // 밀어 올리거나 꺾어 내림
       const g = ctx.createGain(); g.gain.setValueAtTime(vol * KS_DEF[inst].gain, t);
       const end = t + Math.max(0.08, dur); g.gain.setTargetAtTime(0.0001, end, 0.06); // 손으로 줄을 막듯 멈춤
       let node = src.connect(g);
@@ -2095,7 +2108,67 @@
       o.connect(body).connect(air).connect(g).connect(musicIn); revSend(g, rev + 0.15);
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
     }
+    /* ---------- 국악기 ----------
+     *  관악: 대금(청 울림이 섞인 낮고 굵은 대나무 피리), 단소(맑고 높은 세로 피리), 피리(겹서 → 콧소리 섞인 강한 소리)
+     *  찰현: 해금(두 줄, 콧소리 + 활 긁는 소리, 넓은 농현), 아쟁(낮고 거친 활 소리)
+     *  모든 음은 아래에서 밀어 올리며 시작(시김새), 길게 끄는 음은 늦게 깊어지는 농현 */
+    const GUGAK = new Set(["daegeum", "danso", "piri", "haegeum", "ajaeng"]);
+    function playGugak(inst, m, prevM, t, dur, vol, rev) {
+      const f = mtof(m), pf = prevM ? mtof(prevM) : null;
+      const wind = inst === "daegeum" || inst === "danso" || inst === "piri";
+      const g = ctx.createGain();
+      const a = inst === "ajaeng" ? 0.18 : inst === "haegeum" ? 0.06 : inst === "piri" ? 0.03 : 0.05;
+      const stop = adsr(g, t, vol, a, 0.3, 0.85, dur * 0.97, inst === "ajaeng" ? 0.35 : 0.18);
+      const o = ctx.createOscillator();
+      o.type = inst === "danso" ? "triangle" : inst === "daegeum" ? "sine" : "sawtooth";
+      // 시김새: 앞 음에서 미끄러지거나, 아래(피리는 더 깊게)에서 밀어 올림
+      const scoop = inst === "piri" ? 0.9 : inst === "haegeum" ? 0.94 : inst === "ajaeng" ? 0.95 : 0.96;
+      if (pf && Math.abs(pf - f) < f * 0.5) { o.frequency.setValueAtTime(pf, t); o.frequency.exponentialRampToValueAtTime(f, t + (inst === "haegeum" ? 0.1 : 0.07)); }
+      else { o.frequency.setValueAtTime(f * scoop, t); o.frequency.exponentialRampToValueAtTime(f, t + (inst === "piri" ? 0.14 : 0.1)); }
+      // 농현: 늦게 들어와 점점 깊어짐 (해금·피리는 넓게)
+      const depth = { daegeum: 0.012, danso: 0.007, piri: 0.022, haegeum: 0.024, ajaeng: 0.012 }[inst];
+      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = inst === "ajaeng" ? 4.4 : inst === "danso" ? 5.4 : 5;
+      lg.gain.setValueAtTime(0, t); lg.gain.setValueAtTime(0, t + Math.min(0.25, dur * 0.3)); lg.gain.linearRampToValueAtTime(f * depth, t + Math.min(0.9, dur * 0.8));
+      lfo.connect(lg).connect(o.frequency);
+      const mix = ctx.createGain(); let lv = 1;
+      if (inst === "piri") { // 겹서: 콧소리 포먼트 세 개 + 살짝 찌그러짐
+        const sh = ctx.createWaveShaper(); sh.curve = curve(3); o.connect(sh);
+        [[750, 2, 1], [1650, 3, 0.8], [2900, 4, 0.45]].forEach(([ff, q, gg]) => { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = ff; bp.Q.value = q; const bg = ctx.createGain(); bg.gain.value = gg * 2; sh.connect(bp).connect(bg).connect(mix); });
+        lv = 0.8;
+      } else if (inst === "haegeum" || inst === "ajaeng") { // 해금: 1.1kHz 콧소리 / 아쟁: 낮고 거칠게
+        const bp = ctx.createBiquadFilter(); bp.type = inst === "haegeum" ? "bandpass" : "lowpass"; bp.frequency.value = inst === "haegeum" ? 1150 : 1100; bp.Q.value = inst === "haegeum" ? 1.4 : 0.8;
+        const pk = ctx.createBiquadFilter(); pk.type = "peaking"; pk.frequency.value = inst === "haegeum" ? 2500 : 420; pk.gain.value = 6; pk.Q.value = 1.2;
+        o.connect(bp).connect(pk).connect(mix); lv = inst === "haegeum" ? 1.15 : 0.9;
+      } else if (inst === "daegeum") { // 대금: 굵은 기음 + 청(갈대막)이 떨리는 '지잉' 소리 약간
+        o.connect(mix);
+        const buzz = ctx.createOscillator(); buzz.type = "sawtooth"; buzz.frequency.value = f; o.frequency && lg.connect(buzz.frequency);
+        const bb = ctx.createBiquadFilter(); bb.type = "bandpass"; bb.frequency.value = 2400; bb.Q.value = 3; const bg = ctx.createGain(); bg.gain.value = 0.12;
+        buzz.connect(bb).connect(bg).connect(mix); buzz.start(t); buzz.stop(stop);
+      } else { // 단소: 맑은 소리에 2배음 살짝
+        o.connect(mix); const h = ctx.createOscillator(); h.frequency.value = f * 2; const hg = ctx.createGain(); hg.gain.value = 0.08; h.connect(hg).connect(mix); h.start(t); h.stop(stop);
+      }
+      const lg2 = ctx.createGain(); lg2.gain.value = lv;
+      mix.connect(lg2).connect(g).connect(musicIn); revSend(g, rev + 0.15);
+      o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
+      // 숨소리(관악) / 활 긁는 소리(찰현)
+      const n = ctx.createBufferSource(); n.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
+      bp.frequency.value = wind ? Math.min(6000, f * 2.2) : inst === "ajaeng" ? 900 : 3200; bp.Q.value = wind ? 2 : 1.2;
+      const ng = ctx.createGain(); adsr(ng, t, vol * (inst === "daegeum" ? 0.4 : inst === "danso" ? 0.32 : inst === "piri" ? 0.1 : inst === "ajaeng" ? 0.35 : 0.16), 0.03, 0.25, 0.45, dur * 0.9, 0.15);
+      n.connect(bp).connect(ng).connect(musicIn); n.start(t, Math.random()); n.stop(stop);
+    }
+    // 국악 타악기: 장구(덩·쿵·덕·기덕), 북, 징, 꽹과리, 박
+    function jgGung(at, v, f = 105) { lowDrum(at, v, f); noiseHit(at, v * 0.12, "lowpass", 400, 0.08); } // 궁편: 낮고 둥근 '쿵'
+    function jgChae(at, v) { noiseHit(at, v * 0.55, "bandpass", 2600, 0.05, 1.5, 0.15); const o = ctx.createOscillator(); o.frequency.setValueAtTime(900, at); o.frequency.exponentialRampToValueAtTime(600, at + 0.03); const g = ctx.createGain(); g.gain.setValueAtTime(v * 0.5, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.05); o.connect(g).connect(musicIn); o.start(at); o.stop(at + 0.06); } // 채편: 날카로운 '덕'
+    const jgDeong = (at, v) => { jgGung(at, v); jgChae(at, v * 0.9); };
+    const jgGiDeok = (at, v, six) => { jgChae(at - six * 0.35, v * 0.5); jgChae(at, v); };
+    const buk = (at, v) => lowDrum(at, v, 64);
+    const jing = (m, at, v) => { fmVoice(mtof(m), at, 4.5, v, 1.41, 1.6, 4.5, musicIn, 0.7); fmVoice(mtof(m) * 1.5, at, 3, v * 0.3, 1.19, 1, 3, musicIn, 0.7); };
+    function kkwaeng(at, v) { fmVoice(2100, at, 0.25, v, 1.47, 4, 0.22, musicIn, 0.2); noiseHit(at, v * 0.6, "highpass", 4000, 0.08); } // 꽹과리 '깽'
+    const bak = (at, v) => { noiseHit(at, v, "bandpass", 1700, 0.06, 4, 0.3); noiseHit(at + 0.008, v * 0.8, "bandpass", 2300, 0.05, 4, 0.3); }; // 박 '딱'
+
     function playEnsInst(inst, m, t, dur, vol, rev, pan) {
+      if (GUGAK.has(inst)) return playGugak(inst, m, null, t, dur, vol, rev);
+      if (inst === "gayageum" || inst === "geomungo") return playString(inst, m, t, dur, vol, rev, pan, null, { nong: dur > 0.5 ? 1 : 0, bend: dur > 0.9 && Math.random() < 0.25 ? (Math.random() < 0.6 ? 1 : -1) : 0 });
       if (KS_DEF[inst]) return playString(inst, m, t, dur, vol, rev, pan);
       if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev);
       const f = mtof(m);
@@ -2151,7 +2224,7 @@
       otome:    { ost: "spic", hit: "brass", gliss: "harp", fill: "tom", hitV: 0.75 },
       hunter:   { ost: "synthbass", hit: "stab", fill: "snare", riser: true },
       daily:    { ost: "dguitar", hit: "dguitar", fill: "tom" },
-      oriental: { ost: "spic", hit: "gong", gliss: "guzheng", fill: "dagu" },
+      oriental: { ost: "gayageum", hit: "jing", gliss: "gayageum", fill: "buk", kkwaeng: true },
       idol:     { ost: "synthbass", hit: "brass", fill: "snare", riser: true, hitV: 0.8 },
       dark:     { ost: "spic", hit: "brass", choir: true, toll: true, fill: "tom" },
     };
@@ -2166,7 +2239,7 @@
         } else {
           const base = 40 + ((root - 4 + 12) % 12), iv = OST[s], acc = s % 4 === 0 ? 1.15 : 0.85;
           if (B.ost === "dguitar") { if (s % 2 === 0) playEnsInst("dguitar", base + (iv === 12 ? 0 : iv), t, six * 1.6, 0.03 * amt * dyn * acc, 0.1, 0); }
-          else playEnsInst(B.ost, base + iv + (B.ost === "spic" ? 12 : 0), t, six * (B.ost === "synthbass" ? 0.9 : 0.8), (B.ost === "synthbass" ? 0.045 : 0.034) * amt * dyn * acc, p.rev, s % 2 ? 0.2 : -0.2);
+          else playEnsInst(B.ost, base + iv + (B.ost === "spic" || B.ost === "gayageum" ? 12 : 0), t, six * (B.ost === "synthbass" ? 0.9 : 0.8), (B.ost === "synthbass" ? 0.045 : 0.034) * amt * dyn * acc, p.rev, s % 2 ? 0.2 : -0.2);
         }
       }
       if (sec < 0) return; // 첫 두 마디는 오스티나토로만 긴장을 쌓음
@@ -2174,7 +2247,8 @@
       const accents = sec === 2 ? [0, 3, 6, 10, 12] : hi % 2 ? [0, 6, 12] : [0];
       if (accents.includes(s)) {
         const hv = (B.hitV || 1) * amt * dyn * (s === 0 ? 1.1 : 0.85);
-        if (B.hit === "gong") { if (s === 0 && hi % 2 === 0) gongNote(root + 36, t, 0.03 * hv); lowDrum(t, 0.16 * hv, 62); }
+        if (B.hit === "jing") { if (s === 0 && hi % 2 === 0) jing(root + 36, t, 0.03 * hv); buk(t, 0.17 * hv); if (s) jgChae(t, 0.08 * hv); }
+        else if (B.hit === "gong") { if (s === 0 && hi % 2 === 0) gongNote(root + 36, t, 0.03 * hv); lowDrum(t, 0.16 * hv, 62); }
         else if (B.hit === "dguitar") [0, 7, 12].forEach((iv, i) => playEnsInst("dguitar", 40 + ((root - 4 + 12) % 12) + iv, t + i * 0.006, six * (s === 0 ? 3.5 : 1.8), 0.035 * hv, 0.15, (i - 1) * 0.3));
         else voicing.slice(0, 3).forEach((m, i) => playEnsInst(B.hit, m + (B.hit === "brass" ? 0 : 12), t + i * 0.004, six * (s === 0 ? 3 : 1.6), (B.hit === "brass" ? 0.03 : 0.034) * hv, p.rev, (i - 1) * 0.35));
       }
@@ -2188,10 +2262,12 @@
       // 악절 끝 필인
       if (hi % 4 === 3 && s >= 12) {
         if (B.fill === "tom") lowDrum(t, 0.14 * amt, [190, 160, 130, 105][s - 12]);
+        else if (B.fill === "buk") { buk(t, 0.15 * amt); jgChae(t + six / 2, 0.06 * amt); if (s === 15) buk(t + six / 2, 0.18 * amt); }
         else if (B.fill === "dagu") { lowDrum(t, 0.15 * amt, 75); if (s === 15) lowDrum(t + six / 2, 0.18 * amt, 68); }
         else if (B.fill === "snare") { snare(t, 0.02 + (s - 12) * 0.008); snare(t + six / 2, 0.02 + (s - 12) * 0.008); }
       }
-      if (hi % 4 === 0 && s === 0 && B.hit !== "gong") crash(t, 0.022);
+      if (hi % 4 === 0 && s === 0 && B.hit !== "gong" && B.hit !== "jing") crash(t, 0.022);
+      if (B.kkwaeng && sec === 2 && s % 2 === 0) kkwaeng(t, s % 4 ? 0.012 : 0.022); // 후렴: 꽹과리
     }
 
     let counterPrev = null, counterPrevLead = null;
@@ -2239,6 +2315,13 @@
             const pick = pool.length ? pool.sort((a, b) => Math.abs(a - prev) - Math.abs(b - prev))[0] : cand.includes(prev) ? prev : cand[0];
             counterPrev = Math.max(lo, Math.min(hi, pick)); counterPrevLead = lastLead;
             playEnsInst(L.i, counterPrev, t, (p.energy >= 1 ? barDur / 2 : barDur) * 0.98, (L.i === "cello" ? 0.05 : 0.035) * v, rev);
+            break;
+          }
+          case "gaya": { // 가야금 반주: 5음 음계 화음 음을 뜯고, 긴 음엔 농현
+            const tones = voicing.map((m) => m + 12);
+            if (p.meter === "12/8") { if (s % 3 !== 1) playEnsInst(L.i, tones[(s + bar) % tones.length], t, six * 2.5, (s % 3 ? 0.022 : 0.03) * v, rev, 0.25); break; }
+            if (p.energy === 0) { if (s === 0 || s === p.spb / 2) { playEnsInst(L.i, tones[0], t, barDur * 0.5, 0.034 * v, rev, 0.2); playEnsInst(L.i, tones[2 % tones.length], t + 0.05, barDur * 0.45, 0.026 * v, rev, 0.35); } break; }
+            if (s % 2 === 0) { const pat = [0, 2, 1, 2, 3, 2, 1, 2]; const m = tones[pat[s / 2] % tones.length]; playEnsInst(L.i, m, t, six * (s === 0 || s === 8 ? 4 : 2.2), (s === 0 ? 0.034 : s === 8 ? 0.028 : 0.021) * v, rev, 0.25); }
             break;
           }
           case "broken": { // 피아노 분산화음(8분): 아래-위로 물결치듯
@@ -2307,10 +2390,16 @@
       // 화음·드론: 마디 첫 박에, 다음 마디까지 겹쳐 이어짐
       if (s === 0) {
         playPad(p.pad, voicing, at, barDur, p.padCut, p.rev);
-        if (p.drone) playPad("warm", [36 + root, 43 + root], at, barDur, 600, p.rev);
+        if (p.drone) playPad(p.droneInst || "warm", [36 + root, 43 + root], at, barDur, 600, p.rev);
+        if (p.theme === "oriental" && step === 0) bak(at, 0.09); // 사극: 박을 '딱' 치며 시작
       }
       // 베이스 (배경 화음과 반주를 모두 '없음'으로 하면 같이 쉼)
-      if (p.pad !== "none" || p.arp !== "none") {
+      if (p.bassInst) { // 거문고: 술대로 내려치는 낮은 현이 베이스 역할
+        const bm = (root > 4 ? 48 : 60) + root - 12;
+        if (s === 0) playEnsInst(p.bassInst, bm, at, beat * 2.5, 0.075, p.rev * 0.5, -0.15);
+        else if (p.energy >= 1 && s === p.spb / 2) playEnsInst(p.bassInst, bm + (hi % 2 ? 7 : 0), at, beat * 1.8, 0.055, p.rev * 0.5, -0.15);
+        else if (p.energy >= 2 && p.meter === "4/4" && (s === 6 || s === 14)) playEnsInst(p.bassInst, bm + 12, at, beat * 0.8, 0.035, p.rev * 0.5, -0.15);
+      } else if (p.pad !== "none" || p.arp !== "none") {
         const bassM = (root > 4 ? 36 : 48) + root;
         const fifth = bassM + 7;
         if (p.meter === "3/4") { // 쿵-짝-짝: 첫 박만 베이스
@@ -2360,17 +2449,18 @@
       if (p.battle) playBattle(p, bar, s, t, six, barDur, voicing, chord, root, sec, hi);
 
       // 리드 멜로디: 16마디 노래(A·A′·B·A″)
-      if (p.lead !== "none" && !cfg.lowPower && bar >= 2) { // 반주가 두 마디 깔린 뒤 노래가 들어옴
+      const li = p.leadSec && sec >= 0 ? p.leadSec[sec] : p.lead; // 동양풍: 악절마다 대금 → 단소 → 피리 → 대금
+      if (li !== "none" && !cfg.lowPower && bar >= 2) { // 반주가 두 마디 깔린 뒤 노래가 들어옴
         const mbar = p.melody[hi];
         for (const n of mbar) if (n.st === s) {
-          const lv = (p.theme === "dark" ? 0.032 : p.lead === "vocal" ? 0.05 : 0.04) * SEC_DYN[sec] * (n.st % (bs * 2) === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
+          const lv = (p.theme === "dark" ? 0.032 : li === "vocal" ? 0.05 : 0.04) * SEC_DYN[sec] * (n.st % (bs * 2) === 0 ? 1.06 : 0.94 + Math.random() * 0.08);
           const tt = t + (n.st ? (Math.random() - 0.5) * 0.012 : 0), dur = n.len * six * (n.stac ? 0.55 : 1);
           if (n.app) { // 꾸밈음: 위 음에서 시작해 화음 음으로 내려앉음
             const d1 = Math.min(dur * 0.4, beat * 0.75);
-            playLead(p.lead, n.m + n.app, lastLead, tt, d1, lv, p.rev);
-            playLead(p.lead, n.m, n.m + n.app, tt + d1, dur - d1, lv * 0.92, p.rev);
-          } else if (n.grace) playLead(p.lead, n.m, n.m - n.grace, tt, dur, lv, p.rev); // 시김새: 아래에서 밀어 올림
-          else playLead(p.lead, n.m, lastLead, tt, dur, lv, p.rev); // 사람이 부르듯 아주 살짝 흔들림
+            playLead(li, n.m + n.app, lastLead, tt, d1, lv, p.rev);
+            playLead(li, n.m, n.m + n.app, tt + d1, dur - d1, lv * 0.92, p.rev);
+          } else if (n.grace) playLead(li, n.m, n.m - n.grace, tt, dur, lv, p.rev); // 시김새: 아래에서 밀어 올림
+          else playLead(li, n.m, lastLead, tt, dur, lv, p.rev); // 사람이 부르듯 아주 살짝 흔들림
           lastLead = n.m;
         }
         if (s === spb - 1 && hi % 4 === 3) lastLead = null; // 악절 끝에서 숨 쉬기
@@ -2440,10 +2530,25 @@
           if (s === 0 && bar % 4 === 0) gongNote(root + 36, at, 0.035);
           break;
         case "dagu": // 무협·사극: 큰북이 느리게 울리고 딱따기가 사이를 채움
-          if (s === 0) lowDrum(at, 0.17, 62); if (s === 8) lowDrum(at, 0.1, 66);
-          if (p.mood === "tense" || p.mood === "dark") { if (s === 6 || s === 14) rim(at, 0.03); if (s === 15 && hi % 2) lowDrum(at, 0.08, 70); }
-          else if (s === 12 && hi % 2) rim(at, 0.018);
-          if (s === 0 && hi % 8 === 0) gongNote(root + 36, at, 0.03);
+          if (s === 0) buk(at, 0.17); if (s === 8) buk(at, 0.1);
+          if (p.mood === "tense" || p.mood === "dark") { if (s === 6 || s === 14) bak(at, 0.03); if (s === 15 && hi % 2) buk(at, 0.08); }
+          else if (s === 12 && hi % 2) jgChae(at, 0.04);
+          if (s === 0 && hi % 8 === 0) jing(root + 36, at, 0.03);
+          break;
+        case "jangdan": // 장구 장단(느린 4박): 덩 . . . . . 덕 . 쿵 . . 기덕 . . 쿵 .
+          if (s === 0) jgDeong(at, 0.13); if (s === 6) jgChae(at, 0.07); if (s === 8) jgGung(at, 0.1);
+          if (s === 11) jgGiDeok(at, 0.07, six); if (s === 14) jgGung(at, 0.06);
+          if (sec === 2 && (s === 0 || s === 8)) buk(at, 0.12);
+          if (s === 0 && hi % 4 === 0 && bar >= 2) jing(root + 36, at, 0.025);
+          break;
+        case "hwimori": // 휘모리: 장구 16분 + 북이 몰아침
+          if (s === 0 || s === 8) { jgDeong(at, 0.14); buk(at, 0.18); }
+          if (s % 2 === 0 && s !== 0 && s !== 8) (s % 4 ? jgChae : jgGung)(at, s % 4 ? 0.06 : 0.08);
+          if (s === 13 || s === 15) jgChae(at, 0.045);
+          if (sec === 2 && (s === 6 || s === 11 || s === 14)) buk(at, 0.13);
+          break;
+        case "jingOnly": // 잔잔한 장면: 악절 첫머리에만 징이 은은하게
+          if (s === 0 && hi % 4 === 0 && bar >= 2) jing(root + 36, at, 0.022);
           break;
         case "swell": // 서정 오케스트라: 악절 첫머리에 큰북이 낮게 울리고, 후렴에선 박마다 은은하게
           if (s === 0 && hi % 4 === 0) { lowDrum(at, 0.16, 60); if (hi % 8 === 0) gongNote(root + 36, at, 0.02); }
@@ -2464,9 +2569,9 @@
           if (bar % 4 === 3 && s >= 6 && s % 2 === 0) timpani(root + 36, at, 0.05 + (s - 6) * 0.012);
           break;
         case "gutgeori": // 굿거리 12/8: 덩 . . 기 덕 . 쿵 . . 기 덕 .
-          if (s === 0) { lowDrum(t, 0.17, 95); rim(t, 0.035); }
-          if (s === 3 || s === 9) rim(t, 0.022); if (s === 4 || s === 10) rim(t, 0.03);
-          if (s === 6) lowDrum(t, 0.12, 95);
+          if (s === 0) jgDeong(t, 0.13);
+          if (s === 3 || s === 9) jgChae(t, 0.045); if (s === 4 || s === 10) jgChae(t, 0.065);
+          if (s === 6) jgGung(t, 0.1);
           break;
         case "shuffle": // 12/8 목가풍
           if (s === 0 || s === 6) kick(at, 0.08); if (s === 3 || s === 9) hat(at, 0.012); else if (s % 3 === 2) hat(at, 0.005);
@@ -2483,6 +2588,7 @@
       if (seqTimer && presetKey === pk) return;
       const changing = !!seqTimer;
       preset = buildPreset(key); presetKey = pk; step = 0; introLeft = preset.spb; lastLead = null;
+      if (mixGain) mixGain.gain.setTargetAtTime(preset.mix, ctx.currentTime, 0.3);
       if (changing) { // 이전 곡은 페이드아웃, 새 곡은 다음 박에서 시작
         const t = ctx.currentTime;
         for (const x of activePads) { try { x.g.gain.cancelScheduledValues(t); x.g.gain.setValueAtTime(x.g.gain.value, t); x.g.gain.linearRampToValueAtTime(0.0001, t + Math.max(0.2, cfg.fade * 0.6)); } catch {} }
@@ -2514,7 +2620,7 @@
       start: startSynth, stop: stopSynth, running: () => !!seqTimer,
       invalidate: () => { presetKey = null; },
       _build: (k) => buildPreset(k), // 점검용
-      refresh: () => { if (seqTimer && curKey) { const np = buildPreset(curKey); if (np.spb !== preset.spb) step = Math.floor(step / preset.spb) * np.spb; preset = np; presetKey = curKey + "|" + activeTheme(); return true; } return false; },
+      refresh: () => { if (seqTimer && curKey) { const np = buildPreset(curKey); if (np.spb !== preset.spb) step = Math.floor(step / preset.spb) * np.spb; preset = np; if (mixGain) mixGain.gain.setTargetAtTime(np.mix, ctx.currentTime, 0.3); presetKey = curKey + "|" + activeTheme(); return true; } return false; },
     };
   }
 
@@ -2708,7 +2814,7 @@
       card("소리별 설정", soundRows, "그룹 오른쪽 스위치로 묶음째 끌 수 있어요. 소리마다 볼륨·음높이·내 파일 교체가 돼요. 파일은 이 기기에만 저장돼요."),
     bgm:
       card("음악 엔진", chips("engine", [["v1", "v1 · 가벼움"], ["v2", "v2 · 풍성함"]]), "v1은 예전 엔진이라 가볍고 단순해요. v2는 멜로디·반주가 풍성한 새 엔진이에요. 고른 엔진만 실행되고, 다른 쪽은 메모리에서 비워져요.") +
-      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"], ["bamboo", "대금·피리"], ["whistle", "휘파람"], ["vocal", "보컬 찹"], ["choir", "합창"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + range("ensemble", "합주 악기", 0, 1.5, 0.05, "pct", "테마 고유 악기(하프·기타·첼로·해금·피아노 등)가 곡이 진행될수록 하나씩 더해져요. 0%면 꺼져요 (v2 전용)") + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
+      card("음악 스타일", range("tempo", "빠르기", 0.7, 1.4, 0.05, "x") + range("kick", "드럼 킥·팀파니 세기", 0, 1.5, 0.05, "pct", "배경음의 '둥둥' 박자 소리예요") + select("melody", "반주(아르페지오) 악기", INSTR, "화음을 쪼개 깔아주는 소리예요") + select("leadInst", "리드 멜로디 악기", [["auto", "테마 따라"], ["none", "없음"], ["flute", "플루트"], ["lead", "신스 리드"], ["epiano", "전자 피아노"], ["horn", "호른"], ["bell", "종"], ["bamboo", "피리(부드럽게)"], ["daegeum", "대금"], ["danso", "단소"], ["piri", "피리"], ["haegeum", "해금"], ["whistle", "휘파람"], ["vocal", "보컬 찹"], ["choir", "합창"]], "위에서 노래하듯 흐르는 멜로디예요") + select("padInst", "배경 화음 음색", PADS) + range("ensemble", "합주 악기", 0, 1.5, 0.05, "pct", "테마 고유 악기(하프·기타·첼로·해금·피아노 등)가 곡이 진행될수록 하나씩 더해져요. 0%면 꺼져요 (v2 전용)") + select("drums", "드럼", DRUMS) + range("density", "음 밀도", 0.3, 1.5, 0.05, "x", "낮추면 여백이 많고 차분해져요") + range("fade", "곡 전환 페이드", 0.2, 4, 0.1, "sf")) +
       card("상황별 음악", sitRows, "상황마다 자동 생성·내 파일·끄기 중에 골라요. ▶는 12초 미리 듣기예요."),
     mood:
       card("감지 방식", range("sensitivity", "감도", 0.5, 2, 0.05, "x", "높이면 작은 단서에도 분위기가 바뀌어요") + range("minHold", "한 분위기 최소 유지 시간", 3, 60, 1, "s", "강한 장면은 이 시간의 절반만 지나도 바뀌어요")) +
