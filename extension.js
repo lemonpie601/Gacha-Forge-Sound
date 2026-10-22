@@ -1910,6 +1910,7 @@
         mix: (mood === "battle" ? st.mixBattle : st.mix) || 1,
         ens: mood === "glitch" ? null : mood === "battle" && st.ensBattle !== undefined ? st.ensBattle : st.ens,
         battle: mood === "battle" ? BATTLE_ARR[th] || null : null,
+        arr: mood === "battle" || mood === "glitch" ? null : ARR[th] || null,
       };
       if (cfg.melody !== "auto") p.arp = cfg.melody;
       if (cfg.padInst !== "auto") p.pad = cfg.padInst;
@@ -1935,7 +1936,10 @@
       musicGate = ctx.createGain();
       musicIn = ctx.createGain();
       mixGain = ctx.createGain(); // 테마마다 전체 크기 맞춤(악기 구성이 달라 크기가 다름)
-      musicIn.connect(mixGain).connect(shelf).connect(lp).connect(musicGate).connect(bgmBus);
+      // 합주를 하나로 묶어 주는 버스 압축(악기들이 따로 놀지 않고 한 덩어리로 들리게)
+      const glue = ctx.createDynamicsCompressor(); glue.threshold.value = -20; glue.knee.value = 8; glue.ratio.value = 2.5; glue.attack.value = 0.02; glue.release.value = 0.25;
+      const makeup = ctx.createGain(); makeup.gain.value = 0.62;
+      musicIn.connect(mixGain).connect(glue).connect(makeup).connect(shelf).connect(lp).connect(musicGate).connect(bgmBus);
       padBus = ctx.createGain(); padBus.connect(musicIn);
     }
     const revSend = (node, amt) => { if (amt > 0 && !cfg.lowPower) { const s = ctx.createGain(); s.gain.value = amt; node.connect(s).connect(reverbIn); } };
@@ -2022,17 +2026,24 @@
       }));
     }
     // 리드 멜로디 (이어지는 음은 미끄러지듯 연결)
-    function playLead(inst, m, prevM, t, dur, vol, rev) {
+    // 표현: 긴 음은 살짝 작게 시작해 부풀었다가 끝에서 잦아듦(사람이 숨·활을 쓰듯). 자리(팬)도 여기서
+    function exprOut(t, dur, pan) {
+      const ex = ctx.createGain();
+      if (dur > 0.8) { ex.gain.setValueAtTime(0.8, t); ex.gain.linearRampToValueAtTime(1.06, t + dur * 0.6); ex.gain.linearRampToValueAtTime(0.82, t + dur); }
+      if (pan && ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = pan; ex.connect(pn).connect(musicIn); } else ex.connect(musicIn);
+      return ex;
+    }
+    function playLead(inst, m, prevM, t, dur, vol, rev, pan = 0) {
       const f = mtof(m), pf = prevM ? mtof(prevM) : null;
       if (inst === "none") return;
       if (inst === "bell") return fmVoice(f, t, dur, vol * 0.8, 2.76, 1.4, Math.max(1.4, dur), musicIn, rev + 0.2);
       if (inst === "epiano") return playInst("epiano", f, t, dur, vol, musicIn, rev);
-      if (inst === "erhu") return playGugak("haegeum", m, prevM, t, dur, vol, rev);
-      if (inst === "violin" || inst === "cello") return playBowed(inst, inst === "cello" ? m - 12 : m, t, dur, vol * 1.25, rev);
+      if (inst === "erhu") return playGugak("haegeum", m, prevM, t, dur, vol, rev, pan);
+      if (inst === "violin" || inst === "cello") return playBowed(inst, inst === "cello" ? m - 12 : m, t, dur, vol * 1.25, rev, pan);
       if (inst === "musicbox") return playInst("musicbox", f / 2, t, Math.max(dur, 1), vol * 1.15, musicIn, rev);
       if (inst === "glock") return fmVoice(f * 2, t, Math.max(dur, 1), vol * 0.9, 2.76, 0.5, 1.6, musicIn, rev + 0.15);
       if (inst === "organ") return playOrgan(m, t, dur, vol * 0.9, rev);
-      if (GUGAK.has(inst)) return playGugak(inst, m, prevM, t, dur, vol * (inst === "piri" ? 0.85 : 1), rev);
+      if (GUGAK.has(inst)) return playGugak(inst, m, prevM, t, dur, vol * (inst === "piri" ? 0.85 : 1), rev, pan);
       const g = ctx.createGain();
       const breathy = inst === "flute" || inst === "bamboo" || inst === "whistle";
       const a = inst === "horn" || inst === "choir" ? 0.09 : inst === "vocal" ? 0.012 : 0.05;
@@ -2058,7 +2069,7 @@
       }
       const lv = inst === "lead" ? 0.45 : inst === "horn" ? 0.7 : inst === "trumpet" ? 0.5 : inst === "vocal" ? 1.1 : inst === "choir" ? 1.2 : 1;
       const lg2 = ctx.createGain(); lg2.gain.value = lv;
-      out.connect(lg2).connect(g).connect(musicIn); revSend(g, rev + (breathy ? 0.15 : 0.05));
+      out.connect(lg2).connect(g).connect(exprOut(t, dur, pan)); revSend(g, rev + (breathy ? 0.15 : 0.05));
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
       if (breathy) { // 숨소리
         const n = ctx.createBufferSource(); n.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f * 2; bp.Q.value = 2.5;
@@ -2113,7 +2124,7 @@
       node.connect(out || musicIn); revSend(g, rev);
       src.start(t); src.stop(Math.min(t + kb.buf.duration / src.playbackRate.value, end + 0.4));
     }
-    function playBowed(inst, m, t, dur, vol, rev) { // 첼로·바이올린·해금
+    function playBowed(inst, m, t, dur, vol, rev, pan = 0) { // 첼로·바이올린·해금
       const f = mtof(m), g = ctx.createGain();
       const a = inst === "erhu" ? 0.08 : 0.16;
       const stop = adsr(g, t, vol, a, 0.4, 0.8, dur * 0.95, 0.3);
@@ -2125,7 +2136,7 @@
       if (inst === "erhu") { body.type = "bandpass"; body.frequency.value = 1300; body.Q.value = 1.6; } // 콧소리 같은 해금
       else { body.type = "lowpass"; body.frequency.value = inst === "cello" ? 1500 : 2800; body.Q.value = 0.9; }
       const air = ctx.createBiquadFilter(); air.type = "peaking"; air.frequency.value = inst === "cello" ? 250 : 900; air.gain.value = 4; air.Q.value = 1;
-      o.connect(body).connect(air).connect(g).connect(musicIn); revSend(g, rev + 0.15);
+      o.connect(body).connect(air).connect(g).connect(exprOut(t, dur, pan)); revSend(g, rev + 0.15);
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
       // 활이 줄을 긁는 소리
       const n = ctx.createBufferSource(); n.buffer = noiseBuf; const nb = ctx.createBiquadFilter(); nb.type = "bandpass"; nb.frequency.value = inst === "cello" ? 1200 : 3000; nb.Q.value = 1;
@@ -2145,7 +2156,7 @@
      *  찰현: 해금(두 줄, 콧소리 + 활 긁는 소리, 넓은 농현), 아쟁(낮고 거친 활 소리)
      *  모든 음은 아래에서 밀어 올리며 시작(시김새), 길게 끄는 음은 늦게 깊어지는 농현 */
     const GUGAK = new Set(["daegeum", "danso", "piri", "haegeum", "ajaeng"]);
-    function playGugak(inst, m, prevM, t, dur, vol, rev) {
+    function playGugak(inst, m, prevM, t, dur, vol, rev, pan = 0) {
       const f = mtof(m), pf = prevM ? mtof(prevM) : null;
       const wind = inst === "daegeum" || inst === "danso" || inst === "piri";
       const g = ctx.createGain();
@@ -2180,7 +2191,7 @@
         o.connect(mix); const h = ctx.createOscillator(); h.frequency.value = f * 2; const hg = ctx.createGain(); hg.gain.value = 0.08; h.connect(hg).connect(mix); h.start(t); h.stop(stop);
       }
       const lg2 = ctx.createGain(); lg2.gain.value = lv;
-      mix.connect(lg2).connect(g).connect(musicIn); revSend(g, rev + 0.15);
+      mix.connect(lg2).connect(g).connect(exprOut(t, dur, pan)); revSend(g, rev + 0.15);
       o.start(t); lfo.start(t); o.stop(stop); lfo.stop(stop);
       // 숨소리(관악) / 활 긁는 소리(찰현)
       const n = ctx.createBufferSource(); n.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
@@ -2199,10 +2210,11 @@
     const bak = (at, v) => { noiseHit(at, v, "bandpass", 1700, 0.06, 4, 0.3); noiseHit(at + 0.008, v * 0.8, "bandpass", 2300, 0.05, 4, 0.3); }; // 박 '딱'
 
     function playEnsInst(inst, m, t, dur, vol, rev, pan) {
-      if (GUGAK.has(inst)) return playGugak(inst, m, null, t, dur, vol, rev);
+      if (GUGAK.has(inst)) return playGugak(inst, m, null, t, dur, vol, rev, pan);
       if (inst === "gayageum" || inst === "geomungo") return playString(inst, m, t, dur, vol, rev, pan, null, { nong: dur > 0.5 ? 1 : 0, bend: dur > 0.9 && Math.random() < 0.25 ? (Math.random() < 0.6 ? 1 : -1) : 0 });
       if (KS_DEF[inst]) return playString(inst, m, t, dur, vol, rev, pan);
-      if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev);
+      if (inst === "cello" || inst === "violin" || inst === "erhu") return playBowed(inst, m, t, dur, vol, rev, pan);
+      if (inst === "flute" || inst === "horn" || inst === "trumpet" || inst === "lead" || inst === "whistle" || inst === "vocal" || inst === "musicbox" || inst === "glock") return playLead(inst, m, null, t, dur, vol, rev, pan);
       const f = mtof(m);
       if (inst === "celesta") return fmVoice(f, t, dur, vol, 4, 0.7, 1.1, musicIn, rev + 0.2);
       if (inst === "glock") return fmVoice(f * 2, t, dur, vol * 0.8, 2.76, 0.5, 1.6, musicIn, rev + 0.15); // 글로켄슈필: 맑은 쇠막대
@@ -2264,6 +2276,20 @@
       dark:     { ost: "spic", hit: "brass", choir: true, toll: true, fill: "timp" },
     };
     const OST = [0, 0, 12, 0, 7, 0, 12, 0, 0, 0, 12, 0, 7, 12, 7, 0];
+    /* ---------- 편곡(전투 외) ----------
+     *  answer: 멜로디가 길게 끄는 동안 짧게 대답하는 악기(A′·A″), 전주에서 첫 가락을 미리 들려줌
+     *  harm: 후렴(B)에서 멜로디에 3도 아래(또는 옥타브)로 겹치는 악기
+     *  fill: 후렴 직전·곡 끝의 넘어가는 소리 */
+    const ARR = {
+      fantasy:  { answer: "flute", harm: { i: "horn", iv: "third" }, fill: "timp" },
+      otome:    { answer: "harp", harm: { i: "flute", iv: "third" }, fill: "harp" },
+      hunter:   { answer: "chip", harm: { i: "lead", iv: -12 }, fill: "snare" },
+      daily:    { answer: "glock", harm: { i: "glock", iv: 12 }, fill: "brush" },
+      dark:     { answer: "harpsichord", harm: { i: "violin", iv: "third" }, fill: "timp" },
+      oriental: { answer: "gayageum", harm: { i: "danso", iv: 12 }, fill: "buk" },
+      idol:     { answer: "celesta", harm: { i: "vocal", iv: "third" }, fill: "snare" },
+    };
+    const scaleBelow = (p, m, k) => { let x = m; for (let i = 0; i < k; i++) { x--; let g = 0; while (!p.scale.includes(((x % 12) + 12) % 12) && g++ < 4) x--; } return x; };
     function playBattle(p, bar, s, t, six, barDur, voicing, chord, root, sec, hi) {
       const B = p.battle, amt = Math.max(0.35, cfg.ensemble); if (!B || cfg.lowPower) return;
       const dyn = sec === 2 ? 1.15 : sec < 0 ? 0.8 : 1;
@@ -2309,6 +2335,7 @@
     let counterPrev = null, counterPrevLead = null;
     function playEnsemble(p, bar, s, t, six, barDur, voicing, chord, root, sec) {
       const amt = cfg.ensemble; if (!p.ens || !(amt > 0.01) || cfg.lowPower) return;
+      if (s) t += Math.random() * 0.007; // 사람이 치듯 박에서 아주 살짝 어긋남
       const dyn = sec >= 0 ? SEC_DYN[sec] : 0.85;
       for (const L of p.ens) {
         if (L.sec && !L.sec.includes(sec)) continue;
@@ -2500,7 +2527,8 @@
         } else if (p.comp) { // 화음 치기: 1박, 2박 반, 3박 반 (느긋한 리듬)
           if (s === 0 || s === 6 || s === 10) notes.forEach((m, i) => playInst(p.arp, mtof(m), t + i * 0.012, s === 0 ? beat * 1.4 : beat * 0.9, (s === 0 ? 0.03 : 0.022) * (p.arp === "epiano" ? 1 : 0.8), musicIn, p.rev));
         } else {
-          const rate = p.energy >= 3 || (p.energy >= 2 && p.arp === "synthpluck") ? 2 : p.energy === 0 && cfg.density < 0.8 ? 8 : 4; // 16분·8분·4분
+          let rate = p.energy >= 3 || (p.energy >= 2 && p.arp === "synthpluck") ? 2 : p.energy === 0 && cfg.density < 0.8 ? 8 : 4; // 16분·8분·4분
+          if (p.arr && sec <= 0 && rate < 8) rate *= 2; // 첫 악절은 성기게 → 갈수록 촘촘해짐
           if (s % rate === 0) {
             const k = s / rate, shape = inB ? (p.energy >= 2 ? [3, 2, 1, 2, 3, 1, 2, 0] : [0, 3, 2, 1, 3, 2, 1, 2]) : p.energy >= 2 ? [0, 1, 2, 3, 2, 1, 2, 3] : [0, 2, 1, 3, 2, 1, 3, 2];
             const m = notes[shape[k % shape.length] % notes.length] + (p.minorBell && Math.random() < 0.08 ? 1 : 0);
@@ -2529,6 +2557,24 @@
           lastLead = n.m;
         }
         if (s === spb - 1 && hi % 4 === 3) lastLead = null; // 악절 끝에서 숨 쉬기
+        const A = p.arr;
+        if (A) {
+          // 후렴: 다른 악기가 3도 아래(또는 옥타브)로 같이 노래
+          if (sec === 2 && A.harm && A.harm.i !== li) for (const n of mbar) if (n.st === s) {
+            const hm = A.harm.iv === "third" ? scaleBelow(p, n.m, 2) : n.m + A.harm.iv;
+            playEnsInst(A.harm.i, hm, t + 0.008, n.len * six * (n.stac ? 0.55 : 0.95), 0.024, p.rev, 0.32);
+          }
+          // 대답: 멜로디가 길게 끄는 사이에 짧은 가락으로 응답(A′·A″)
+          if ((sec === 1 || sec === 3) && A.answer) for (const n of mbar) if (n.len >= bs * 3 && s === n.st + bs * 2 && n.st + n.len <= spb + 1) {
+            const src = p.melody[(hi + 15) % 16].slice(-3).map((x) => x.m), up = /harp|glock|celesta|chip|musicbox|harpsichord/.test(A.answer) ? 12 : 0;
+            src.forEach((m, i) => playEnsInst(A.answer, m + up, t + i * six * (bs === 3 ? 1 : 1.5), six * 2.5, 0.022, p.rev + 0.1, -0.35));
+          }
+        }
+      }
+      // 전주: 둘째 마디에 대답 악기가 첫 가락을 살짝 미리 들려줌
+      if (p.arr && p.arr.answer && bar === 1 && li !== "none" && !cfg.lowPower) {
+        const up = /harp|glock|celesta|chip|musicbox|harpsichord/.test(p.arr.answer) ? 12 : 0;
+        for (const n of p.melody[0]) if (n.st === s) playEnsInst(p.arr.answer, n.m + up, t, n.len * six * 0.9, 0.02, p.rev + 0.15, -0.3);
       }
 
       // 테마별 양념
@@ -2552,6 +2598,21 @@
 
       // 드럼 (곡 시작 첫 마디는 쉼)
       if (intro) { introLeft--; step++; return; }
+      if (p.arr) {
+        // 넘어가는 소리: 후렴 직전·곡 끝 마디의 뒤쪽
+        const F = p.arr.fill;
+        if ((hi === 7 || hi === 15) && s >= spb - 4) {
+          if (F === "timp") timpani(root + 36, t, 0.04 + (s - spb + 4) * 0.02);
+          else if (F === "snare") { snare(t, 0.01 + (s - spb + 4) * 0.006); snare(t + six / 2, 0.01 + (s - spb + 4) * 0.006); }
+          else if (F === "brush") noiseHit(t, 0.01, "bandpass", 2200, 0.12, 0.7);
+          else if (F === "buk") { if (s % 2 === 0) buk(t, 0.1 + (s - spb + 4) * 0.02); }
+          else if (F === "harp" && s === spb - 4) glissRun("harp", p, voicing[0], 10, t, 0.03, 0.03);
+        }
+        if (hi === 7 && s === spb - 4 && p.drums !== "none") cymSwell(t, six * 4, 0.01);
+        // 첫 악절은 박 하나만, 후렴 직전 마디 뒤쪽은 비워서 숨을 줌
+        if (sec <= 0 && s !== 0) { step++; return; }
+        if (hi === 7 && s >= spb / 2) { step++; return; }
+      }
       switch (p.drums) {
         case "soft": if (s === 0) kick(at, 0.1); if (s === 8) rim(at, 0.02); if (s % 4 === 2) hat(at, 0.008); break;
         case "bounce": if (s === 0 || s === 8 || s === 10) kick(at, 0.16); if (s === 4 || s === 12) snare(at, 0.045); if (s % 2 === 0) hat(at, s % 4 ? 0.012 : 0.018); break;
